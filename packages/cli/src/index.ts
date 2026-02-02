@@ -8,6 +8,7 @@ import { discoverInstructionFiles } from "./instructions";
 import { hashFilesSha256 } from "./hash";
 import { writeSkipNext } from "./state";
 import { repoHasExistingPrecommitLinting } from "./precommitDetection";
+import { getShipstampEnv } from "./env";
 
 function printHelp() {
   process.stdout.write(
@@ -95,6 +96,9 @@ function cmdReview(argv: string[]) {
   void hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles);
 
   void repoHasExistingPrecommitLinting(repoRoot);
+
+  // v0: review will call the API; ensure required env is present early.
+  void getShipstampEnv();
 
   // v0 scaffold: real staged diff collection lands in later steps.
   const md = formatReviewResultMarkdown({ status: "PASS", findings: [] });
