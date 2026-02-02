@@ -7,24 +7,27 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { api } from "../../../../convex/_generated/api";
+import { useSelectedOrg } from "./useSelectedOrg";
 
 export function DashboardClient() {
   const identity = useQuery(api.auth.getCurrentUser);
   const session = authClient.useSession();
   const orgs = useQuery(api.orgs.listMine);
+  const { selectedOrgId, setSelectedOrgId, selectedOrg } = useSelectedOrg(orgs);
   const day = new Date().toISOString().slice(0, 10);
   const recent = useQuery(
     api.reviews.listRecentForOrg,
-    orgs && orgs.length > 0 ? { orgId: orgs[0]!.org._id, limit: 10 } : "skip"
+    selectedOrgId ? { orgId: selectedOrgId as any, limit: 10 } : "skip"
   );
   const myUsage = useQuery(
     api.usage.getMyDailyUsage,
-    orgs && orgs.length > 0 ? { orgId: orgs[0]!.org._id, day } : "skip"
+    selectedOrgId ? { orgId: selectedOrgId as any, day } : "skip"
   );
   const modelStats = useQuery(
     api.stats.listModelStatsForOrgDay,
-    orgs && orgs.length > 0 ? { orgId: orgs[0]!.org._id, day } : "skip"
+    selectedOrgId ? { orgId: selectedOrgId as any, day } : "skip"
   );
+  const repos = useQuery(api.repos.listForOrg, selectedOrgId ? { orgId: selectedOrgId as any } : "skip");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
 
@@ -75,6 +78,37 @@ export function DashboardClient() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Org</CardTitle>
+            <CardDescription>Select which org to view</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {orgs === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading orgs...</div>
+            ) : orgs.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No orgs yet.</div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <select
+                  className="h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm"
+                  value={selectedOrgId ?? ""}
+                  onChange={(e) => setSelectedOrgId(e.target.value)}
+                >
+                  {orgs.map((o) => (
+                    <option key={o.org._id} value={o.org._id}>
+                      {o.org.name}
+                    </option>
+                  ))}
+                </select>
+                <Link href="/dashboard/repos" className={buttonVariants({ variant: "outline" })}>
+                  Repos
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Identity</CardTitle>
             <CardDescription>Server identity (Convex)</CardDescription>
           </CardHeader>
@@ -92,7 +126,7 @@ export function DashboardClient() {
         <Card>
           <CardHeader>
             <CardTitle>Recent reviews</CardTitle>
-            <CardDescription>Last 10 runs for your first org</CardDescription>
+            <CardDescription>Last 10 runs for {selectedOrg?.name ?? "your org"}</CardDescription>
           </CardHeader>
           <CardContent>
             {orgs === undefined ? (
@@ -123,6 +157,35 @@ export function DashboardClient() {
                       <div className="shrink-0 text-xs text-muted-foreground">
                         {r.counts.major} major · {r.counts.minor} minor · {r.counts.note} note
                       </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Repos</CardTitle>
+            <CardDescription>Repositories registered in this org</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {repos === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading repos...</div>
+            ) : repos.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No repos yet (run `shipstamp review` once).</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {repos.slice(0, 8).map((r) => (
+                  <Link
+                    key={r._id}
+                    href={`/dashboard/repos/${r._id}`}
+                    className="rounded-md border px-3 py-2 text-sm hover:bg-muted"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 truncate font-medium">{r.normalizedOriginUrl}</div>
+                      <div className="shrink-0 text-xs text-muted-foreground">{r.defaultBranch}</div>
                     </div>
                   </Link>
                 ))}
@@ -184,7 +247,7 @@ export function DashboardClient() {
               <div className="text-sm text-muted-foreground">No orgs yet.</div>
             ) : (
               <>
-                <div className="text-sm text-muted-foreground">Inviting into: {orgs[0]!.org.name}</div>
+                <div className="text-sm text-muted-foreground">Inviting into: {selectedOrg?.name ?? orgs[0]!.org.name}</div>
                 <input
                   className="h-9 rounded-md border bg-background px-3 text-sm"
                   value={inviteEmail}
@@ -195,10 +258,14 @@ export function DashboardClient() {
                   variant="outline"
                   onClick={async () => {
                     setInviteStatus(null);
+                    if (!selectedOrgId) {
+                      setInviteStatus("Invite failed: missing selected org");
+                      return;
+                    }
                     const res = await fetch("/api/v1/orgs/invite", {
                       method: "POST",
                       headers: { "content-type": "application/json" },
-                      body: JSON.stringify({ orgId: orgs[0]!.org._id, email: inviteEmail })
+                      body: JSON.stringify({ orgId: selectedOrgId, email: inviteEmail })
                     });
 
                     const txt = await res.text();

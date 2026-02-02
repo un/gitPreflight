@@ -33,6 +33,7 @@ export default defineSchema({
     createdAtMs: v.number()
   })
     .index("by_orgId", ["orgId"])
+    .index("by_orgId_createdAtMs", ["orgId", "createdAtMs"])
     .index("by_normalizedOriginUrl", ["normalizedOriginUrl"])
     .index("by_orgId_normalizedOriginUrl", ["orgId", "normalizedOriginUrl"]),
 
@@ -58,6 +59,7 @@ export default defineSchema({
     createdAtMs: v.number()
   })
     .index("by_repoId", ["repoId"])
+    .index("by_repoId_createdAtMs", ["repoId", "createdAtMs"])
     .index("by_orgId_createdAtMs", ["orgId", "createdAtMs"]),
 
   findings: defineTable({

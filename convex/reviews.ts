@@ -209,6 +209,49 @@ export const listRecentForOrg = query({
   }
 });
 
+export const listRecentForRepo = query({
+  args: {
+    repoId: v.id("repos"),
+    limit: v.optional(v.number())
+  },
+  handler: async (ctx, args) => {
+    const repo = await ctx.db.get(args.repoId);
+    if (!repo) return [];
+
+    await requireOrgMember(ctx, repo.orgId);
+
+    const limit = Math.max(1, Math.min(args.limit ?? 20, 50));
+    const runs = await ctx.db
+      .query("reviewRuns")
+      .withIndex("by_repoId_createdAtMs", (q) => q.eq("repoId", args.repoId))
+      .order("desc")
+      .take(limit);
+
+    const out: Array<{
+      run: Doc<"reviewRuns">;
+      counts: { note: number; minor: number; major: number; total: number };
+    }> = [];
+
+    for (const run of runs) {
+      const findings = await ctx.db
+        .query("findings")
+        .withIndex("by_reviewRunId", (q) => q.eq("reviewRunId", run._id))
+        .collect();
+
+      const counts = { note: 0, minor: 0, major: 0, total: findings.length };
+      for (const f of findings) {
+        if (f.severity === "major") counts.major++;
+        else if (f.severity === "minor") counts.minor++;
+        else counts.note++;
+      }
+
+      out.push({ run, counts });
+    }
+
+    return out;
+  }
+});
+
 export const getRun = query({
   args: {
     runId: v.id("reviewRuns")

@@ -87,9 +87,11 @@ export const listForOrg = query({
   handler: async (ctx, args): Promise<Array<Doc<"repos">>> => {
     await requireOrgMember(ctx, args.orgId);
 
-    const repos = await ctx.db.query("repos").withIndex("by_orgId", (q) => q.eq("orgId", args.orgId)).collect();
-    repos.sort((a, b) => b.createdAtMs - a.createdAtMs);
-    return repos;
+    return await ctx.db
+      .query("repos")
+      .withIndex("by_orgId_createdAtMs", (q) => q.eq("orgId", args.orgId))
+      .order("desc")
+      .collect();
   }
 });
 
