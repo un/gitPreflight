@@ -8,14 +8,25 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { useQuery } from "convex/react";
 
 export default function DevicePage() {
   const session = authClient.useSession();
   const approve = useMutation(api.deviceAuth.approve);
+  const acceptInvite = useMutation(api.invites.acceptByCode);
+  const createOrg = useMutation(api.orgs.create);
+
+  const orgs = useQuery(api.orgs.listMine);
+  const invites = useQuery(api.invites.listForMyEmail);
+
   const [code, setCode] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [status, setStatus] = useState<string | null>(null);
 
   const normalized = useMemo(() => code.trim().toUpperCase(), [code]);
+  const normalizedInvite = useMemo(() => inviteCode.trim().toUpperCase(), [inviteCode]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -44,6 +55,90 @@ export default function DevicePage() {
               </>
             ) : (
               <>
+                {orgs === undefined || invites === undefined ? (
+                  <div className="text-sm text-muted-foreground">Loading...</div>
+                ) : orgs.length === 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {invites.length > 0 ? (
+                      <div className="rounded-lg border bg-card px-4 py-3">
+                        <div className="text-sm font-medium">Pending invites</div>
+                        <div className="mt-2 flex flex-col gap-2">
+                          {invites.map(({ invite, org }) => (
+                            <Button
+                              key={invite._id}
+                              variant="outline"
+                              onClick={async () => {
+                                setStatus(null);
+                                try {
+                                  await acceptInvite({ code: invite.code });
+                                } catch (err) {
+                                  setStatus((err as Error).message);
+                                }
+                              }}
+                            >
+                              Accept {org.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="rounded-lg border bg-card px-4 py-3">
+                      <div className="text-sm font-medium">Join with invite code</div>
+                      <div className="mt-2 flex flex-col gap-2">
+                        <Input value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="ABCDE-FGHIJ" />
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            setStatus(null);
+                            try {
+                              await acceptInvite({ code: normalizedInvite });
+                            } catch (err) {
+                              setStatus((err as Error).message);
+                            }
+                          }}
+                        >
+                          Join org
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border bg-card px-4 py-3">
+                      <div className="text-sm font-medium">Create an org</div>
+                      <div className="mt-2 flex flex-col gap-2">
+                        <Input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Unproprietary" />
+                        <Button
+                          onClick={async () => {
+                            setStatus(null);
+                            try {
+                              await createOrg({ name: orgName.trim() });
+                            } catch (err) {
+                              setStatus((err as Error).message);
+                            }
+                          }}
+                        >
+                          Create org
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-muted-foreground">Select an org for this CLI token</div>
+                    <select
+                      className="h-9 rounded-md border bg-background px-3 text-sm"
+                      value={selectedOrgId || orgs[0]!.org._id}
+                      onChange={(e) => setSelectedOrgId(e.target.value)}
+                    >
+                      {orgs.map(({ org }) => (
+                        <option key={org._id} value={org._id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
@@ -54,7 +149,12 @@ export default function DevicePage() {
                   onClick={async () => {
                     setStatus(null);
                     try {
-                      await approve({ userCode: normalized });
+                      if (!orgs || orgs.length === 0) {
+                        setStatus("You need to join or create an org first.");
+                        return;
+                      }
+                      const orgId = selectedOrgId || orgs[0]!.org._id;
+                      await approve({ userCode: normalized, orgId });
                       setStatus("Approved. You can return to the CLI.");
                     } catch {
                       setStatus("Failed to approve code.");

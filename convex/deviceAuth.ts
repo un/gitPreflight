@@ -53,13 +53,20 @@ export const start = mutation({
 
 export const approve = mutation({
   args: {
-    userCode: v.string()
+    userCode: v.string(),
+    orgId: v.id("orgs")
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Unauthorized");
     }
+
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_orgId_userId", (q) => q.eq("orgId", args.orgId).eq("userId", identity.subject))
+      .unique();
+    if (!membership) throw new Error("Not a member of that org");
 
     const req = await ctx.db
       .query("deviceAuthRequests")
@@ -73,6 +80,7 @@ export const approve = mutation({
     await ctx.db.patch(req._id, {
       status: "approved",
       userId: identity.subject,
+      orgId: args.orgId,
       approvedAtMs: Date.now()
     });
 
@@ -93,7 +101,7 @@ export const complete = mutation({
     if (!req) throw new Error("device_code_not_found");
     if (Date.now() > req.expiresAtMs) throw new Error("expired");
     if (req.consumedAtMs) throw new Error("already_consumed");
-    if (req.status !== "approved" || !req.userId) throw new Error("authorization_pending");
+    if (req.status !== "approved" || !req.userId || !req.orgId) throw new Error("authorization_pending");
 
     const token = randomBase32(64);
     const tokenHash = await sha256Hex(token);
@@ -101,6 +109,7 @@ export const complete = mutation({
 
     await ctx.db.insert("apiTokens", {
       userId: req.userId,
+      orgId: req.orgId,
       tokenHash,
       tokenPrefix,
       createdAtMs: Date.now()
