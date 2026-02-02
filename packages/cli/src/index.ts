@@ -149,7 +149,8 @@ async function cmdReview(argv: string[]) {
       .filter((f) => f.path && f.changeType !== "deleted")
       .map((f) => f.path);
 
-    const discovered = discoverInstructionFiles(repoRoot, changedPaths, repoConfig.instructionFiles);
+    let instructionFilenames = repoConfig.instructionFiles;
+    let discovered = discoverInstructionFiles(repoRoot, changedPaths, instructionFilenames);
     void hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles);
 
     const detectedLinters = detectLinters(repoRoot);
@@ -192,6 +193,18 @@ async function cmdReview(argv: string[]) {
       }
 
       if (token) {
+        // Best-effort: pull org-managed instruction filenames.
+        try {
+          const apiClient = new ShipstampApiClient({ baseUrl: apiBaseUrl, token, timeoutMs: repoConfig.timeoutMs });
+          const settings = await apiClient.getJson<{ instructionFilenames?: string[] }>("/api/v1/orgs/settings");
+          if (Array.isArray(settings.instructionFilenames) && settings.instructionFilenames.length > 0) {
+            instructionFilenames = settings.instructionFilenames;
+            discovered = discoverInstructionFiles(repoRoot, changedPaths, instructionFilenames);
+          }
+        } catch {
+          // ignore
+        }
+
         const originUrl = getOriginUrl(repoRoot);
         if (!originUrl) {
           findings.push({

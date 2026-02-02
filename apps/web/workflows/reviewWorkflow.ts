@@ -12,6 +12,7 @@ export type ReviewWorkflowInput = {
   stagedPatch: string;
   stagedFiles: Array<{ path: string; changeType: string; isBinary: boolean }>;
   instructionFiles: Array<{ path: string; sha256: string }>;
+  promptAppend?: string;
 };
 
 export type ReviewWorkflowOutput = {
@@ -28,6 +29,9 @@ export async function reviewWorkflow(input: ReviewWorkflowInput): Promise<Review
 
   const prompt =
     "Return ONLY JSON with shape: {\"findings\":[{\"path\":string,\"severity\":\"note\"|\"minor\"|\"major\",\"title\":string,\"message\":string,\"line\"?:number,\"suggestion\"?:string}]}\n\n" +
+    (input.promptAppend && input.promptAppend.trim().length > 0
+      ? `Additional instructions (append-only):\n${input.promptAppend.trim()}\n\n`
+      : "") +
     "Staged patch:\n" +
     input.stagedPatch;
 

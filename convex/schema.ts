@@ -37,6 +37,14 @@ export default defineSchema({
     .index("by_normalizedOriginUrl", ["normalizedOriginUrl"])
     .index("by_orgId_normalizedOriginUrl", ["orgId", "normalizedOriginUrl"]),
 
+  orgSettings: defineTable({
+    orgId: v.id("orgs"),
+    instructionFilenames: v.array(v.string()),
+    promptAppend: v.string(),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number()
+  }).index("by_orgId", ["orgId"]),
+
   instructionFiles: defineTable({
     orgId: v.id("orgs"),
     repoId: v.optional(v.id("repos")),

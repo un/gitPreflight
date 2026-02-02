@@ -38,6 +38,46 @@ export class ShipstampApiClient {
     this.timeoutMs = opts.timeoutMs;
   }
 
+  async getJson<T>(path: string): Promise<T> {
+    const url = `${this.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), this.timeoutMs);
+
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${this.token}`
+        },
+        signal: ac.signal
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        if (res.status >= 500) {
+          const e = new Error(`Shipstamp API error (${res.status})`) as any;
+          e.name = "ShipstampServerError";
+          e.code = "ESHIPSTAMP_SERVER";
+          e.status = res.status;
+          e.bodyText = text;
+          throw e;
+        }
+        throw new ShipstampApiError(`Shipstamp API error (${res.status})`, res.status, text);
+      }
+
+      return JSON.parse(text) as T;
+    } catch (err) {
+      if (isOfflineOrTimeoutError(err)) {
+        const e = err as Error;
+        (e as any).code = (e as any).code ?? "ETIMEDOUT";
+        throw e;
+      }
+      throw err;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
   async postJson<T>(path: string, body: unknown): Promise<T> {
     const url = `${this.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
     const ac = new AbortController();

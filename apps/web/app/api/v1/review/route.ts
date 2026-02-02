@@ -74,6 +74,15 @@ export async function POST(request: Request) {
   const planTier =
     parsed.data.planTier === "paid" && process.env.SHIPSTAMP_ENABLE_PAID_TIER === "1" ? "paid" : "free";
 
+  // Best-effort: fetch org settings (prompt append).
+  let promptAppend = "";
+  try {
+    const settings = await client.query(api.settings.getForToken, { token } as any);
+    promptAppend = settings?.promptAppend ?? "";
+  } catch {
+    // ignore
+  }
+
   // Enforce daily usage before invoking model workflows.
   try {
     const usage = await client.mutation(api.usage.consumeReviewRun, {
@@ -114,7 +123,7 @@ export async function POST(request: Request) {
   }
 
   const t0 = Date.now();
-  const result = await reviewWorkflow({ ...parsed.data, planTier });
+  const result = await reviewWorkflow({ ...parsed.data, planTier, promptAppend });
   const durationMs = Date.now() - t0;
 
   // Best-effort persistence (don’t block response on Convex write failures).

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -13,7 +13,7 @@ export function DashboardClient() {
   const identity = useQuery(api.auth.getCurrentUser);
   const session = authClient.useSession();
   const orgs = useQuery(api.orgs.listMine);
-  const { selectedOrgId, setSelectedOrgId, selectedOrg } = useSelectedOrg(orgs);
+  const { selectedOrgId, setSelectedOrgId, selectedOrg, selectedOrgRole } = useSelectedOrg(orgs);
   const day = new Date().toISOString().slice(0, 10);
   const recent = useQuery(
     api.reviews.listRecentForOrg,
@@ -33,12 +33,23 @@ export function DashboardClient() {
   );
   const repos = useQuery(api.repos.listForOrg, selectedOrgId ? { orgId: selectedOrgId as any } : "skip");
   const members = useQuery(api.memberships.listForOrg, selectedOrgId ? { orgId: selectedOrgId as any } : "skip");
+  const orgSettings = useQuery(api.settings.getForOrg, selectedOrgId ? { orgId: selectedOrgId as any } : "skip");
+  const appendPrompt = useMutation(api.settings.appendPrompt);
+  const setInstructionFilenames = useMutation(api.settings.setInstructionFilenames);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+  const [promptAppendText, setPromptAppendText] = useState("");
+  const [filenamesText, setFilenamesText] = useState("");
+  const [settingsStatus, setSettingsStatus] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/v1/emails/welcome", { method: "POST" }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!orgSettings) return;
+    setFilenamesText(orgSettings.instructionFilenames.join("\n"));
+  }, [selectedOrgId, orgSettings]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -321,6 +332,86 @@ export function DashboardClient() {
             )}
           </CardContent>
         </Card>
+
+        {selectedOrgId && orgSettings && orgSettings.canEdit ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Org settings</CardTitle>
+              <CardDescription>Admin-only settings for {selectedOrg?.name ?? "your org"}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              <div className="text-xs text-muted-foreground">Role: {selectedOrgRole ?? "member"}</div>
+
+              <div className="flex flex-col gap-2">
+                <div className="text-sm font-medium">Prompt append (append-only)</div>
+                <div className="text-xs text-muted-foreground">
+                  This text is appended server-side to model prompts for new reviews.
+                </div>
+                <textarea
+                  className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={promptAppendText}
+                  onChange={(e) => setPromptAppendText(e.target.value)}
+                  placeholder="Add guidance for the reviewer models..."
+                />
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setSettingsStatus(null);
+                    if (!selectedOrgId) return;
+                    try {
+                      await appendPrompt({ orgId: selectedOrgId as any, text: promptAppendText } as any);
+                      setPromptAppendText("");
+                      setSettingsStatus("Prompt append saved.");
+                    } catch (err) {
+                      setSettingsStatus(`Prompt append failed: ${(err as Error).message}`);
+                    }
+                  }}
+                >
+                  Append
+                </Button>
+
+                {orgSettings.promptAppend ? (
+                  <pre className="max-h-48 overflow-auto rounded-md bg-muted px-3 py-2 text-xs">
+                    {orgSettings.promptAppend}
+                  </pre>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No prompt append yet.</div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="text-sm font-medium">Instruction filenames</div>
+                <div className="text-xs text-muted-foreground">One filename per line (no paths).</div>
+                <textarea
+                  className="min-h-24 w-full rounded-md border bg-background px-3 py-2 font-mono text-xs"
+                  value={filenamesText}
+                  onChange={(e) => setFilenamesText(e.target.value)}
+                />
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setSettingsStatus(null);
+                    if (!selectedOrgId) return;
+                    const filenames = filenamesText
+                      .split(/\r?\n/g)
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    try {
+                      await setInstructionFilenames({ orgId: selectedOrgId as any, filenames } as any);
+                      setSettingsStatus("Instruction filenames updated.");
+                    } catch (err) {
+                      setSettingsStatus(`Instruction filename update failed: ${(err as Error).message}`);
+                    }
+                  }}
+                >
+                  Save filenames
+                </Button>
+              </div>
+
+              {settingsStatus ? <div className="text-sm text-muted-foreground">{settingsStatus}</div> : null}
+            </CardContent>
+          </Card>
+        ) : null}
       </main>
     </div>
   );

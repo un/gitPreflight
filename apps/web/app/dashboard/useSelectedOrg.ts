@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 const STORAGE_KEY = "shipstamp.selectedOrgId";
 
 export function useSelectedOrg(
-  orgs: Array<{ org: { _id: string; name?: string } }> | undefined
+  orgs: Array<{ org: { _id: string; name?: string }; role?: string }> | undefined
 ) {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
@@ -33,10 +33,13 @@ export function useSelectedOrg(
     }
   }, [selectedOrgId]);
 
-  const selectedOrg = useMemo(() => {
+  const selectedOrgRecord = useMemo(() => {
     if (!orgs || !selectedOrgId) return null;
-    return orgs.find((o) => o.org._id === selectedOrgId)?.org ?? null;
+    return orgs.find((o) => o.org._id === selectedOrgId) ?? null;
   }, [orgs, selectedOrgId]);
 
-  return { selectedOrgId, setSelectedOrgId, selectedOrg };
+  const selectedOrg = selectedOrgRecord?.org ?? null;
+  const selectedOrgRole = selectedOrgRecord?.role ?? null;
+
+  return { selectedOrgId, setSelectedOrgId, selectedOrg, selectedOrgRole, selectedOrgRecord };
 }
