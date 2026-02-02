@@ -28,6 +28,8 @@ import { loadToken } from "./token";
 import { readTextFile } from "./files";
 import { loadRepoEnv } from "./dotenvFile";
 import { ShipstampApiClient, ShipstampApiError } from "./apiClient";
+import { assertSourceBuild } from "./buildFlags";
+import { runLocalAgentMarkdownReview } from "./localAgent";
 
 function printHelp() {
   process.stdout.write(
@@ -38,7 +40,7 @@ function printHelp() {
       "  shipstamp <command> [options]",
       "",
       "Commands:",
-      "  review --staged        Review staged changes (v0: stub)",
+      "  review --staged        Review staged changes",
       "  init                  Install git hooks + config (v0: stub)",
       "  auth login             Authenticate the CLI (v0: stub)",
       "  skip-next --reason ... Bypass next commit (v0: stub)",
@@ -66,13 +68,14 @@ async function cmdReview(argv: string[]) {
     args: argv,
     options: {
       staged: { type: "boolean" },
+      "local-agent": { type: "boolean" },
       help: { type: "boolean", short: "h" }
     },
     allowPositionals: true
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: shipstamp review --staged\n");
+    process.stdout.write("Usage: shipstamp review --staged [--local-agent]\n");
     return 0;
   }
 
@@ -140,6 +143,7 @@ async function cmdReview(argv: string[]) {
 
   try {
     const repoConfig = loadShipstampRepoConfig(repoRoot);
+    const useLocalAgent = Boolean((parsed.values as any)["local-agent"]);
 
     // v0 scaffold: start collecting staged metadata.
     const stagedFiles = collectStagedFiles(repoRoot);
@@ -164,19 +168,21 @@ async function cmdReview(argv: string[]) {
     const mergedEnv = { ...process.env, ...repoEnv } as NodeJS.ProcessEnv;
 
     let apiBaseUrl: string | null = null;
-    try {
-      apiBaseUrl = getShipstampEnv(mergedEnv).SHIPSTAMP_API_BASE_URL;
-    } catch (err) {
-      findings.push({
-        path: "package.json",
-        severity: "minor",
-        title: "Missing required environment",
-        message:
-          "Shipstamp needs SHIPSTAMP_API_BASE_URL to contact the Shipstamp API (separate app/domain).\n\n" +
-          "Set it in your environment, e.g.:\n\n" +
-          "`export SHIPSTAMP_API_BASE_URL=https://api.shipstamp.example`\n\n" +
-          `Error: ${(err as Error).message}`
-      });
+    if (!useLocalAgent) {
+      try {
+        apiBaseUrl = getShipstampEnv(mergedEnv).SHIPSTAMP_API_BASE_URL;
+      } catch (err) {
+        findings.push({
+          path: "package.json",
+          severity: "minor",
+          title: "Missing required environment",
+          message:
+            "Shipstamp needs SHIPSTAMP_API_BASE_URL to contact the Shipstamp API (separate app/domain).\n\n" +
+            "Set it in your environment, e.g.:\n\n" +
+            "`export SHIPSTAMP_API_BASE_URL=https://api.shipstamp.example`\n\n" +
+            `Error: ${(err as Error).message}`
+        });
+      }
     }
 
     if (apiBaseUrl) {
@@ -277,6 +283,86 @@ async function cmdReview(argv: string[]) {
       process.stdout.write(md);
       process.stdout.write("\n");
       return 1;
+    }
+
+    if (useLocalAgent) {
+      try {
+        assertSourceBuild("Local-agent mode");
+      } catch (err) {
+        findings.push({
+          path: "package.json",
+          severity: "minor",
+          title: "Local-agent mode disabled",
+          message: (err as Error).message
+        });
+      }
+
+      const cmd = mergedEnv.SHIPSTAMP_LOCAL_AGENT_COMMAND;
+      if (!cmd || cmd.trim().length === 0) {
+        findings.push({
+          path: ".env.local",
+          severity: "minor",
+          title: "Missing local agent command",
+          message:
+            "Set SHIPSTAMP_LOCAL_AGENT_COMMAND to a command that reads the prompt from stdin and prints Shipstamp Markdown to stdout.\n\n" +
+            "Example:\n\n" +
+            "`export SHIPSTAMP_LOCAL_AGENT_COMMAND=\"opencode run\"`"
+        });
+      }
+
+      if (findings.some((f) => f.severity === "minor" || f.severity === "major")) {
+        const md = formatReviewResultMarkdown({ status: "FAIL", findings });
+        process.stdout.write(md);
+        process.stdout.write("\n");
+        return 1;
+      }
+
+      const instructionSections = hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles).hashed
+        .map((h) => {
+          const content = readTextFile(repoRoot, h.path);
+          const clipped = content.length > 20_000 ? `${content.slice(0, 20_000)}\n\n(…truncated)` : content;
+          return `--- ${h.path} ---\n${clipped.trimEnd()}\n--- end ${h.path} ---`;
+        })
+        .join("\n\n");
+
+      const prompt =
+        "You are Shipstamp in local-agent mode. Review ONLY the staged patch.\n" +
+        "Output MUST follow the Shipstamp Markdown contract:\n" +
+        "- Start with '# Shipstamp Review'\n" +
+        "- Include 'Result: PASS|FAIL|UNCHECKED'\n" +
+        "- Include 'Counts: note=<n> minor=<n> major=<n>'\n" +
+        "- Include '## Findings' grouped by file\n" +
+        "- For each finding include Path/Severity/Agreement lines and optional ```suggestion blocks\n\n" +
+        (instructionSections ? `Instruction files:\n\n${instructionSections}\n\n` : "") +
+        `Staged patch:\n${stagedPatch}`;
+
+      const local = runLocalAgentMarkdownReview({
+        command: cmd!,
+        cwd: repoRoot,
+        timeoutMs: repoConfig.timeoutMs,
+        prompt
+      });
+
+      if (!local.ok) {
+        const md = formatReviewResultMarkdown({
+          status: "FAIL",
+          findings: [
+            {
+              path: "package.json",
+              severity: "minor",
+              title: "Local agent review failed",
+              message: local.errorMessage
+            }
+          ]
+        });
+        process.stdout.write(md);
+        process.stdout.write("\n");
+        return 1;
+      }
+
+      process.stdout.write(local.markdown);
+      process.stdout.write("\n");
+      return local.status === "FAIL" ? 1 : 0;
     }
 
     // SaaS review: send staged patch to server.
