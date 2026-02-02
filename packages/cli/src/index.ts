@@ -4,6 +4,7 @@ import { getBranchName, getHeadSha, getRepoRoot } from "./git";
 import { loadShipstampRepoConfig } from "./repoConfig";
 import { collectStagedFiles } from "./staged";
 import { collectStagedPatch } from "./stagedPatch";
+import { discoverInstructionFiles } from "./instructions";
 
 function printHelp() {
   process.stdout.write(
@@ -66,9 +67,10 @@ function cmdReview(argv: string[]) {
     return 2;
   }
 
+  let repoConfig;
   try {
     // Loaded for instruction discovery + linter policy.
-    void loadShipstampRepoConfig(repoRoot);
+    repoConfig = loadShipstampRepoConfig(repoRoot);
   } catch (err) {
     process.stderr.write(`${(err as Error).message}\n`);
     return 2;
@@ -79,8 +81,14 @@ function cmdReview(argv: string[]) {
   void getHeadSha();
 
   // v0 scaffold: start collecting staged metadata.
-  void collectStagedFiles(repoRoot);
+  const stagedFiles = collectStagedFiles(repoRoot);
   void collectStagedPatch(repoRoot);
+
+  const changedPaths = stagedFiles
+    .filter((f) => f.path && f.changeType !== "deleted")
+    .map((f) => f.path);
+
+  void discoverInstructionFiles(repoRoot, changedPaths, repoConfig.instructionFiles);
 
   // v0 scaffold: real staged diff collection lands in later steps.
   const md = formatReviewResultMarkdown({ status: "PASS", findings: [] });
