@@ -30,6 +30,7 @@ import { loadRepoEnv } from "./dotenvFile";
 import { ShipstampApiClient, ShipstampApiError } from "./apiClient";
 import { assertSourceBuild } from "./buildFlags";
 import { runLocalAgentMarkdownReview } from "./localAgent";
+import { renderReviewTui } from "./tui";
 
 function printHelp() {
   process.stdout.write(
@@ -69,13 +70,15 @@ async function cmdReview(argv: string[]) {
     options: {
       staged: { type: "boolean" },
       "local-agent": { type: "boolean" },
+      tui: { type: "boolean" },
+      plain: { type: "boolean" },
       help: { type: "boolean", short: "h" }
     },
     allowPositionals: true
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: shipstamp review --staged [--local-agent]\n");
+    process.stdout.write("Usage: shipstamp review --staged [--local-agent] [--tui|--plain]\n");
     return 0;
   }
 
@@ -96,6 +99,22 @@ async function cmdReview(argv: string[]) {
   const branch = getBranchName() ?? "(detached)";
   void getHeadSha();
 
+  const inHook = Boolean(process.env.GIT_DIR) || process.env.CI === "1" || process.env.CI === "true";
+  const forcePlain = Boolean((parsed.values as any).plain) || process.env.SHIPSTAMP_UI === "plain";
+  const forceTui = Boolean((parsed.values as any).tui) || process.env.SHIPSTAMP_UI === "tui";
+  const isBunRuntime = typeof (globalThis as any).Bun !== "undefined";
+  const autoTui = Boolean(process.stdout.isTTY) && !inHook;
+  const useTui = !forcePlain && isBunRuntime && (forceTui || autoTui);
+
+  const emit = async (md: string) => {
+    if (useTui) {
+      await renderReviewTui(md);
+      return;
+    }
+    process.stdout.write(md);
+    process.stdout.write("\n");
+  };
+
   const skip = readSkipNext(repoRoot);
   if (skip) {
     clearSkipNext(repoRoot);
@@ -110,8 +129,7 @@ async function cmdReview(argv: string[]) {
         }
       ]
     });
-    process.stdout.write(md);
-    process.stdout.write("\n");
+    await emit(md);
     return 0;
   }
 
@@ -136,8 +154,7 @@ async function cmdReview(argv: string[]) {
         }
       ]
     });
-    process.stdout.write(md);
-    process.stdout.write("\n");
+    await emit(md);
     return 1;
   }
 
@@ -280,8 +297,7 @@ async function cmdReview(argv: string[]) {
     // Local blockers (env/auth/linters) should still block before the network call.
     if (findings.some((f) => f.severity === "minor" || f.severity === "major")) {
       const md = formatReviewResultMarkdown({ status: "FAIL", findings });
-      process.stdout.write(md);
-      process.stdout.write("\n");
+      await emit(md);
       return 1;
     }
 
@@ -312,8 +328,7 @@ async function cmdReview(argv: string[]) {
 
       if (findings.some((f) => f.severity === "minor" || f.severity === "major")) {
         const md = formatReviewResultMarkdown({ status: "FAIL", findings });
-        process.stdout.write(md);
-        process.stdout.write("\n");
+        await emit(md);
         return 1;
       }
 
@@ -355,13 +370,11 @@ async function cmdReview(argv: string[]) {
             }
           ]
         });
-        process.stdout.write(md);
-        process.stdout.write("\n");
+        await emit(md);
         return 1;
       }
 
-      process.stdout.write(local.markdown);
-      process.stdout.write("\n");
+      await emit(local.markdown);
       return local.status === "FAIL" ? 1 : 0;
     }
 
@@ -435,8 +448,7 @@ async function cmdReview(argv: string[]) {
                       }
                     ]
             });
-            process.stdout.write(md);
-            process.stdout.write("\n");
+            await emit(md);
             return 0;
           }
 
@@ -458,8 +470,7 @@ async function cmdReview(argv: string[]) {
 
     const status = findings.some((f) => f.severity === "minor" || f.severity === "major") ? "FAIL" : "PASS";
     const md = formatReviewResultMarkdown({ status, findings });
-    process.stdout.write(md);
-    process.stdout.write("\n");
+    await emit(md);
     return status === "FAIL" ? 1 : 0;
   } catch (err) {
     if (isOfflineOrTimeoutError(err)) {
@@ -481,8 +492,7 @@ async function cmdReview(argv: string[]) {
           }
         ]
       });
-      process.stdout.write(md);
-      process.stdout.write("\n");
+      await emit(md);
       return 0;
     }
 

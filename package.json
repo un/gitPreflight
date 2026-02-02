@@ -1,7 +1,11 @@
 {
   "name": "shipstamp",
   "private": true,
-  "packageManager": "pnpm@10.27.0",
+  "packageManager": "bun@1.3.5",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": ">=22.14.0"
   },
@@ -16,17 +20,12 @@
     "tsup": "^8.4.0",
     "typescript": "^5.7.3"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "unrs-resolver"
-    ]
-  },
   "scripts": {
-    "build": "pnpm -r --if-present run build",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "lint": "pnpm -r --if-present run lint",
-    "test": "pnpm -r --if-present run test"
+    "build": "bun --workspaces --if-present run build",
+    "typecheck": "bun --workspaces --if-present run typecheck",
+    "lint": "bun --workspaces --if-present run lint",
+    "test": "bun --workspaces --if-present run test",
+    "convex:codegen": "bun x convex codegen",
+    "convex:dev": "bun x convex dev"
   }
 }
