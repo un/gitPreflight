@@ -19,6 +19,7 @@ import { runPostCommit } from "./postCommit";
 import { deviceAuthLogin } from "./deviceAuth";
 import { loadToken } from "./token";
 import { readTextFile } from "./files";
+import { loadRepoEnv } from "./dotenvFile";
 
 function printHelp() {
   process.stdout.write(
@@ -150,9 +151,12 @@ async function cmdReview(argv: string[]) {
 
     let findings: Array<import("@shipstamp/core").Finding> = [];
 
+    const repoEnv = loadRepoEnv(repoRoot);
+    const mergedEnv = { ...process.env, ...repoEnv } as NodeJS.ProcessEnv;
+
     let apiBaseUrl: string | null = null;
     try {
-      apiBaseUrl = getShipstampEnv().SHIPSTAMP_API_BASE_URL;
+      apiBaseUrl = getShipstampEnv(mergedEnv).SHIPSTAMP_API_BASE_URL;
     } catch (err) {
       findings.push({
         path: "package.json",
@@ -316,8 +320,16 @@ async function cmdAuth(argv: string[]) {
     }
 
     try {
-      const env = getShipstampEnv();
-      await deviceAuthLogin(env.SHIPSTAMP_API_BASE_URL);
+      let env = process.env as NodeJS.ProcessEnv;
+      try {
+        const repoRoot = getRepoRoot();
+        env = { ...env, ...loadRepoEnv(repoRoot) } as NodeJS.ProcessEnv;
+      } catch {
+        // auth login can run outside a repo; fall back to process env
+      }
+
+      const parsedEnv = getShipstampEnv(env);
+      await deviceAuthLogin(parsedEnv.SHIPSTAMP_API_BASE_URL);
       process.stdout.write("Shipstamp CLI authenticated.\n");
       return 0;
     } catch (err) {
