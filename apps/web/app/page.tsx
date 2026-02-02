@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConvexHealth } from "./ConvexHealth";
 
 export default function Home() {
   return (
@@ -20,6 +21,8 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
+
+        <ConvexHealth />
       </main>
     </div>
   );
