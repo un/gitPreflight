@@ -13,6 +13,7 @@ import { detectLinters } from "./lintersDetect";
 import { selectStagedFilesForLinters } from "./linterFiles";
 import { detectPackageManager } from "./packageManager";
 import { runLintersInCheckMode } from "./runLinters";
+import { initRepo } from "./init";
 
 function printHelp() {
   process.stdout.write(
@@ -145,7 +146,23 @@ function cmdInit(argv: string[]) {
     return 0;
   }
 
-  process.stdout.write("shipstamp init (stub)\n");
+  let repoRoot: string;
+  try {
+    repoRoot = getRepoRoot();
+  } catch (err) {
+    process.stderr.write(`${(err as Error).message}\n`);
+    return 2;
+  }
+
+  try {
+    initRepo(repoRoot);
+  } catch (err) {
+    process.stderr.write(`Failed to initialize Shipstamp: ${(err as Error).message}\n`);
+    return 2;
+  }
+
+  process.stdout.write("Initialized Shipstamp (Husky hooks + package.json updates).\n");
+  process.stdout.write("Next: run your package manager install so the prepare script can run `husky install`.\n");
   return 0;
 }
 
