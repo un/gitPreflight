@@ -6,7 +6,7 @@ import { collectStagedFiles } from "./staged";
 import { collectStagedPatch } from "./stagedPatch";
 import { discoverInstructionFiles } from "./instructions";
 import { hashFilesSha256 } from "./hash";
-import { writeSkipNext } from "./state";
+import { writePendingNextCommit, writeSkipNext } from "./state";
 import { repoHasExistingPrecommitLinting } from "./precommitDetection";
 import { getShipstampEnv } from "./env";
 import { detectLinters } from "./lintersDetect";
@@ -14,6 +14,7 @@ import { selectStagedFilesForLinters } from "./linterFiles";
 import { detectPackageManager } from "./packageManager";
 import { runLintersInCheckMode } from "./runLinters";
 import { initRepo } from "./init";
+import { isOfflineOrTimeoutError } from "./errors";
 
 function printHelp() {
   process.stdout.write(
@@ -76,60 +77,93 @@ function cmdReview(argv: string[]) {
     return 2;
   }
 
-  let repoConfig;
-  try {
-    // Loaded for instruction discovery + linter policy.
-    repoConfig = loadShipstampRepoConfig(repoRoot);
-  } catch (err) {
-    process.stderr.write(`${(err as Error).message}\n`);
-    return 2;
-  }
-
-  // Collected for later API requests/backlog logic.
-  void getBranchName();
+  const branch = getBranchName() ?? "(detached)";
   void getHeadSha();
 
-  // v0 scaffold: start collecting staged metadata.
-  const stagedFiles = collectStagedFiles(repoRoot);
-  void collectStagedPatch(repoRoot);
+  try {
+    const repoConfig = loadShipstampRepoConfig(repoRoot);
 
-  const changedPaths = stagedFiles
-    .filter((f) => f.path && f.changeType !== "deleted")
-    .map((f) => f.path);
+    // v0 scaffold: start collecting staged metadata.
+    const stagedFiles = collectStagedFiles(repoRoot);
+    void collectStagedPatch(repoRoot);
 
-  const discovered = discoverInstructionFiles(repoRoot, changedPaths, repoConfig.instructionFiles);
-  void hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles);
+    const changedPaths = stagedFiles
+      .filter((f) => f.path && f.changeType !== "deleted")
+      .map((f) => f.path);
 
-  void repoHasExistingPrecommitLinting(repoRoot);
+    const discovered = discoverInstructionFiles(repoRoot, changedPaths, repoConfig.instructionFiles);
+    void hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles);
 
-  // v0: review will call the API; ensure required env is present early.
-  void getShipstampEnv();
+    const detectedLinters = detectLinters(repoRoot);
+    const selected = selectStagedFilesForLinters(stagedFiles, detectedLinters);
 
-  const detectedLinters = detectLinters(repoRoot);
-  const selected = selectStagedFilesForLinters(stagedFiles, detectedLinters);
+    const pm = detectPackageManager(repoRoot);
 
-  const pm = detectPackageManager(repoRoot);
+    let findings: Array<import("@shipstamp/core").Finding> = [];
 
-  let linterFindings: Array<import("@shipstamp/core").Finding> = [];
-  if (repoConfig.linters.enabled) {
-    const hasPrecommitLinting = repoHasExistingPrecommitLinting(repoRoot);
-    if (!repoConfig.linters.skipIfRepoAlreadyHasPrecommit || !hasPrecommitLinting) {
-      linterFindings = runLintersInCheckMode({
-        repoRoot,
-        detected: detectedLinters,
-        selectedFiles: selected,
-        packageManager: pm,
-        timeoutMs: repoConfig.timeoutMs
+    try {
+      void getShipstampEnv();
+    } catch (err) {
+      findings.push({
+        path: "package.json",
+        severity: "minor",
+        title: "Missing required environment",
+        message:
+          "Shipstamp needs SHIPSTAMP_API_BASE_URL to contact the Shipstamp API (separate app/domain).\n\n" +
+          "Set it in your environment, e.g.:\n\n" +
+          "`export SHIPSTAMP_API_BASE_URL=https://api.shipstamp.example`\n\n" +
+          `Error: ${(err as Error).message}`
       });
     }
-  }
 
-  // v0 scaffold: real staged diff collection lands in later steps.
-  const status = linterFindings.some((f) => f.severity === "minor" || f.severity === "major") ? "FAIL" : "PASS";
-  const md = formatReviewResultMarkdown({ status, findings: linterFindings });
-  process.stdout.write(md);
-  process.stdout.write("\n");
-  return status === "FAIL" ? 1 : 0;
+    if (repoConfig.linters.enabled) {
+      const hasPrecommitLinting = repoHasExistingPrecommitLinting(repoRoot);
+      if (!repoConfig.linters.skipIfRepoAlreadyHasPrecommit || !hasPrecommitLinting) {
+        findings = findings.concat(
+          runLintersInCheckMode({
+            repoRoot,
+            detected: detectedLinters,
+            selectedFiles: selected,
+            packageManager: pm,
+            timeoutMs: repoConfig.timeoutMs
+          })
+        );
+      }
+    }
+
+    const status = findings.some((f) => f.severity === "minor" || f.severity === "major") ? "FAIL" : "PASS";
+    const md = formatReviewResultMarkdown({ status, findings });
+    process.stdout.write(md);
+    process.stdout.write("\n");
+    return status === "FAIL" ? 1 : 0;
+  } catch (err) {
+    if (isOfflineOrTimeoutError(err)) {
+      writePendingNextCommit(repoRoot, {
+        branch,
+        createdAtMs: Date.now(),
+        reason: (err as Error).message ?? "offline/timeout"
+      });
+
+      const md = formatReviewResultMarkdown({
+        status: "UNCHECKED",
+        findings: [
+          {
+            path: "package.json",
+            severity: "note",
+            title: "Unchecked review",
+            message:
+              "Shipstamp could not complete the review (offline/timeout). Commit is allowed, but Shipstamp will require reviewing this commit before the next commit on this branch."
+          }
+        ]
+      });
+      process.stdout.write(md);
+      process.stdout.write("\n");
+      return 0;
+    }
+
+    process.stderr.write(`Shipstamp internal error: ${(err as Error).message}\n`);
+    return 2;
+  }
 }
 
 function cmdInit(argv: string[]) {

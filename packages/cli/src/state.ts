@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 export type PendingCommit = {
@@ -14,6 +14,12 @@ export type PendingState = {
 
 export type SkipNextState = {
   createdAtMs: number;
+  reason: string;
+};
+
+export type PendingNextCommitMarker = {
+  createdAtMs: number;
+  branch: string;
   reason: string;
 };
 
@@ -85,4 +91,33 @@ export function clearSkipNext(repoRoot: string) {
   // Hook will implement removal; for now overwriting with empty isn't necessary.
   // Keeping as a placeholder API.
   void repoRoot;
+}
+
+export function readPendingNextCommit(repoRoot: string): PendingNextCommitMarker | null {
+  const abs = join(getShipstampStateDir(repoRoot), "pending-next-commit");
+  try {
+    const raw = JSON.parse(readFileSync(abs, "utf8"));
+    if (!raw || typeof raw !== "object") return null;
+    const branch = (raw as any).branch;
+    const createdAtMs = (raw as any).createdAtMs;
+    const reason = (raw as any).reason;
+    if (typeof branch !== "string" || typeof createdAtMs !== "number" || typeof reason !== "string") return null;
+    return { branch, createdAtMs, reason };
+  } catch {
+    return null;
+  }
+}
+
+export function writePendingNextCommit(repoRoot: string, marker: PendingNextCommitMarker) {
+  const abs = join(getShipstampStateDir(repoRoot), "pending-next-commit");
+  writeFileAtomic(abs, JSON.stringify(marker, null, 2) + "\n");
+}
+
+export function clearPendingNextCommit(repoRoot: string) {
+  const abs = join(getShipstampStateDir(repoRoot), "pending-next-commit");
+  try {
+    unlinkSync(abs);
+  } catch {
+    // ignore
+  }
 }

@@ -10,7 +10,10 @@ export function getShipstampEnv(rawEnv: NodeJS.ProcessEnv = process.env): Shipst
     server: {
       SHIPSTAMP_API_BASE_URL: z.string().url()
     },
-    runtimeEnv: rawEnv
+    runtimeEnv: rawEnv,
+    onValidationError: () => {
+      throw new Error("Invalid environment variables");
+    }
   });
 
   return {
