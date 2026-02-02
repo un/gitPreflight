@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { z } from "zod";
 import { api } from "../../../../../../convex/_generated/api";
+import { reviewWorkflow } from "@/workflows/reviewWorkflow";
 
 export const runtime = "nodejs";
 
@@ -53,9 +54,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_request", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  // v0: orchestration + model runs land in S150+. For now, return a stub.
-  return NextResponse.json({
-    status: "PASS",
-    findings: []
-  });
+  const result = await reviewWorkflow(parsed.data);
+  return NextResponse.json(result);
 }

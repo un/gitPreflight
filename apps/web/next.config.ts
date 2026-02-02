@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { withWorkflow } from "workflow/next";
 
 // Load env from the monorepo root (../../.env.local).
 // Next.js only auto-loads env files from the app directory.
@@ -50,4 +51,4 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default nextConfig;
+export default withWorkflow(nextConfig);
