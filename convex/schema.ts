@@ -17,7 +17,7 @@ export default defineSchema({
 
   memberships: defineTable({
     orgId: v.id("orgs"),
-    userId: v.id("users"),
+    userId: v.string(),
     role: v.string(),
     createdAtMs: v.number()
   })
@@ -73,7 +73,7 @@ export default defineSchema({
 
   usageDaily: defineTable({
     orgId: v.id("orgs"),
-    userId: v.id("users"),
+    userId: v.string(),
     day: v.string(),
     count: v.number()
   })
