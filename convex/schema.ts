@@ -105,6 +105,12 @@ export default defineSchema({
     .index("by_code", ["code"])
     .index("by_orgId_email", ["orgId", "email"]),
 
+  emailEvents: defineTable({
+    userId: v.string(),
+    type: v.string(),
+    createdAtMs: v.number()
+  }).index("by_userId_type", ["userId", "type"]),
+
   deviceAuthRequests: defineTable({
     deviceCode: v.string(),
     userCode: v.string(),

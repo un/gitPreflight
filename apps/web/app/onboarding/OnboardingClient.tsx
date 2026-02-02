@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,18 @@ export function OnboardingClient() {
   const [status, setStatus] = useState<string | null>(null);
 
   const normalizedCode = useMemo(() => normalizeInviteCode(inviteCode), [inviteCode]);
+
+  useEffect(() => {
+    // Best-effort welcome email (server decides whether to send).
+    fetch("/api/v1/emails/welcome", { method: "POST" }).catch(() => {});
+
+    // Pre-fill invite code if present.
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code && code.trim().length > 0) {
+      setInviteCode(code);
+    }
+  }, []);
 
   if (orgs === undefined || invites === undefined) {
     return (

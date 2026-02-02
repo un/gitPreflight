@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
@@ -10,6 +11,13 @@ import { api } from "../../../../convex/_generated/api";
 export function DashboardClient() {
   const identity = useQuery(api.auth.getCurrentUser);
   const session = authClient.useSession();
+  const orgs = useQuery(api.orgs.listMine);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/v1/emails/welcome", { method: "POST" }).catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -64,6 +72,53 @@ export function DashboardClient() {
               <pre className="overflow-auto rounded-md bg-muted px-3 py-2 text-xs">
                 {JSON.stringify(identity, null, 2)}
               </pre>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Invite to org</CardTitle>
+            <CardDescription>Generate an invite code (and email it if Resend is configured).</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {orgs === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading orgs...</div>
+            ) : orgs.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No orgs yet.</div>
+            ) : (
+              <>
+                <div className="text-sm text-muted-foreground">Inviting into: {orgs[0]!.org.name}</div>
+                <input
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="teammate@example.com"
+                />
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setInviteStatus(null);
+                    const res = await fetch("/api/v1/orgs/invite", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ orgId: orgs[0]!.org._id, email: inviteEmail })
+                    });
+
+                    const txt = await res.text();
+                    if (!res.ok) {
+                      setInviteStatus(`Invite failed: ${txt}`);
+                      return;
+                    }
+
+                    const data = JSON.parse(txt) as { inviteCode: string; emailed: boolean };
+                    setInviteStatus(`Invite code: ${data.inviteCode}${data.emailed ? " (emailed)" : ""}`);
+                  }}
+                >
+                  Create invite
+                </Button>
+                {inviteStatus ? <div className="text-sm text-muted-foreground">{inviteStatus}</div> : null}
+              </>
             )}
           </CardContent>
         </Card>
