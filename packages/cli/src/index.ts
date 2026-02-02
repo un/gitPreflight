@@ -16,6 +16,7 @@ import { runLintersInCheckMode } from "./runLinters";
 import { initRepo } from "./init";
 import { isOfflineOrTimeoutError } from "./errors";
 import { runPostCommit } from "./postCommit";
+import { deviceAuthLogin } from "./deviceAuth";
 
 function printHelp() {
   process.stdout.write(
@@ -262,7 +263,16 @@ function cmdAuth(argv: string[]) {
       return 0;
     }
 
-    process.stdout.write("shipstamp auth login (stub)\n");
+    const env = getShipstampEnv();
+    deviceAuthLogin(env.SHIPSTAMP_API_BASE_URL)
+      .then(() => {
+        process.stdout.write("Shipstamp CLI authenticated.\n");
+      })
+      .catch((err) => {
+        process.stderr.write(`Auth failed: ${(err as Error).message}\n`);
+        process.exitCode = 2;
+      });
+
     return 0;
   }
 

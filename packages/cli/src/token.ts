@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -24,6 +24,15 @@ function configDir(): string {
 
 function tokenPath(): string {
   return join(configDir(), "token.json");
+}
+
+export function clearToken() {
+  const abs = tokenPath();
+  try {
+    unlinkSync(abs);
+  } catch {
+    // ignore
+  }
 }
 
 export function saveToken(token: string) {

@@ -87,5 +87,31 @@ export default defineSchema({
     runs: v.number(),
     findings: v.number(),
     avgLatencyMs: v.optional(v.number())
-  }).index("by_orgId_day_model", ["orgId", "day", "model"])
+  }).index("by_orgId_day_model", ["orgId", "day", "model"]),
+
+  deviceAuthRequests: defineTable({
+    deviceCode: v.string(),
+    userCode: v.string(),
+    status: v.string(),
+    userId: v.optional(v.string()),
+    tokenHash: v.optional(v.string()),
+    tokenPrefix: v.optional(v.string()),
+    createdAtMs: v.number(),
+    expiresAtMs: v.number(),
+    approvedAtMs: v.optional(v.number()),
+    consumedAtMs: v.optional(v.number())
+  })
+    .index("by_deviceCode", ["deviceCode"])
+    .index("by_userCode", ["userCode"])
+    .index("by_status", ["status"]),
+
+  apiTokens: defineTable({
+    userId: v.string(),
+    tokenHash: v.string(),
+    tokenPrefix: v.string(),
+    createdAtMs: v.number(),
+    revokedAtMs: v.optional(v.number())
+  })
+    .index("by_userId", ["userId"])
+    .index("by_tokenHash", ["tokenHash"])
 });
