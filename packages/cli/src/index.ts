@@ -1,6 +1,7 @@
 import { formatReviewResultMarkdown, SHIPSTAMP_CORE_VERSION } from "@shipstamp/core";
 import { parseArgs } from "node:util";
 import { getBranchName, getHeadSha, getRepoRoot } from "./git";
+import { loadShipstampRepoConfig } from "./repoConfig";
 
 function printHelp() {
   process.stdout.write(
@@ -55,8 +56,17 @@ function cmdReview(argv: string[]) {
   }
 
   // Ensure we're inside a git repo early.
+  let repoRoot: string;
   try {
-    getRepoRoot();
+    repoRoot = getRepoRoot();
+  } catch (err) {
+    process.stderr.write(`${(err as Error).message}\n`);
+    return 2;
+  }
+
+  try {
+    // Loaded for instruction discovery + linter policy.
+    void loadShipstampRepoConfig(repoRoot);
   } catch (err) {
     process.stderr.write(`${(err as Error).message}\n`);
     return 2;
