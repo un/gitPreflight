@@ -56,11 +56,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_request", details: parsed.error.flatten() }, { status: 400 });
   }
 
+  // Until billing is implemented, default to free tier unless explicitly enabled.
+  const planTier =
+    parsed.data.planTier === "paid" && process.env.SHIPSTAMP_ENABLE_PAID_TIER === "1" ? "paid" : "free";
+
   // Enforce daily usage before invoking model workflows.
   try {
     const usage = await client.mutation(api.usage.consumeReviewRun, {
       token,
-      planTier: parsed.data.planTier
+      planTier
     });
 
     if (!usage.allowed) {
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const result = await reviewWorkflow(parsed.data);
+  const result = await reviewWorkflow({ ...parsed.data, planTier });
 
   // Best-effort persistence (don’t block response on Convex write failures).
   try {
@@ -101,8 +105,8 @@ export async function POST(request: Request) {
       normalizedOriginUrl: parsed.data.normalizedOriginUrl,
       branch: parsed.data.branch,
       status: result.status,
-      planTier: parsed.data.planTier,
-      modelSet: parsed.data.planTier === "paid" ? "openai+anthropic+google" : "openai",
+      planTier,
+      modelSet: planTier === "paid" ? "openai+anthropic+google" : "openai",
       findings: result.findings.map((f) => ({
         path: f.path,
         severity: f.severity,
