@@ -11,6 +11,8 @@ import { repoHasExistingPrecommitLinting } from "./precommitDetection";
 import { getShipstampEnv } from "./env";
 import { detectLinters } from "./lintersDetect";
 import { selectStagedFilesForLinters } from "./linterFiles";
+import { detectPackageManager } from "./packageManager";
+import { runLintersInCheckMode } from "./runLinters";
 
 function printHelp() {
   process.stdout.write(
@@ -103,13 +105,30 @@ function cmdReview(argv: string[]) {
   void getShipstampEnv();
 
   const detectedLinters = detectLinters(repoRoot);
-  void selectStagedFilesForLinters(stagedFiles, detectedLinters);
+  const selected = selectStagedFilesForLinters(stagedFiles, detectedLinters);
+
+  const pm = detectPackageManager(repoRoot);
+
+  let linterFindings: Array<import("@shipstamp/core").Finding> = [];
+  if (repoConfig.linters.enabled) {
+    const hasPrecommitLinting = repoHasExistingPrecommitLinting(repoRoot);
+    if (!repoConfig.linters.skipIfRepoAlreadyHasPrecommit || !hasPrecommitLinting) {
+      linterFindings = runLintersInCheckMode({
+        repoRoot,
+        detected: detectedLinters,
+        selectedFiles: selected,
+        packageManager: pm,
+        timeoutMs: repoConfig.timeoutMs
+      });
+    }
+  }
 
   // v0 scaffold: real staged diff collection lands in later steps.
-  const md = formatReviewResultMarkdown({ status: "PASS", findings: [] });
+  const status = linterFindings.some((f) => f.severity === "minor" || f.severity === "major") ? "FAIL" : "PASS";
+  const md = formatReviewResultMarkdown({ status, findings: linterFindings });
   process.stdout.write(md);
   process.stdout.write("\n");
-  return 0;
+  return status === "FAIL" ? 1 : 0;
 }
 
 function cmdInit(argv: string[]) {
