@@ -1,6 +1,7 @@
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConvexHealth } from "./ConvexHealth";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -16,8 +17,12 @@ export default function Home() {
               This page renders coss ui components installed via the shadcn CLI.
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button>Run shipstamp init</Button>
-              <Button variant="outline">Review staged changes</Button>
+              <Link href="/sign-in" className={buttonVariants({ variant: "default" })}>
+                Sign in
+              </Link>
+              <Link href="/dashboard" className={buttonVariants({ variant: "outline" })}>
+                Dashboard
+              </Link>
             </div>
           </CardContent>
         </Card>
