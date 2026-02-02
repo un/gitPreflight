@@ -15,6 +15,7 @@ import { detectPackageManager } from "./packageManager";
 import { runLintersInCheckMode } from "./runLinters";
 import { initRepo } from "./init";
 import { isOfflineOrTimeoutError } from "./errors";
+import { runPostCommit } from "./postCommit";
 
 function printHelp() {
   process.stdout.write(
@@ -224,6 +225,24 @@ function cmdAuth(argv: string[]) {
   return 2;
 }
 
+function cmdInternal(argv: string[]) {
+  const sub = argv[0];
+
+  if (sub === "post-commit") {
+    let repoRoot: string;
+    try {
+      repoRoot = getRepoRoot();
+    } catch {
+      return 0;
+    }
+
+    return runPostCommit(repoRoot);
+  }
+
+  process.stderr.write("Usage: shipstamp internal post-commit\n");
+  return 2;
+}
+
 function cmdSkipNext(argv: string[]) {
   const parsed = parseArgs({
     args: argv,
@@ -266,6 +285,7 @@ export function runCli(argv: string[] = process.argv.slice(2)) {
   if (cmd === "init") return cmdInit(rest);
   if (cmd === "auth") return cmdAuth(rest);
   if (cmd === "skip-next") return cmdSkipNext(rest);
+  if (cmd === "internal") return cmdInternal(rest);
 
   return unknownCommand(cmd);
 }

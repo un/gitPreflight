@@ -1,5 +1,5 @@
 import { ensureHuskyHookAppends } from "./huskyHooks";
-import { getShipstampReviewHookLine } from "./hookCommand";
+import { getShipstampPostCommitHookLine, getShipstampReviewHookLine } from "./hookCommand";
 import { readPackageJson, writePackageJson } from "./packageJson";
 
 function ensureScripts(pkg: any): Record<string, string> {
@@ -50,7 +50,8 @@ export function initRepo(repoRoot: string): InitResult {
   ensureHuskyHookAppends(repoRoot, "pre-commit", reviewLine);
 
   // Post-commit hook reserved for unchecked backlog capture.
-  ensureHuskyHookAppends(repoRoot, "post-commit", ": # shipstamp post-commit (reserved)");
+  const postCommitLine = getShipstampPostCommitHookLine(repoRoot);
+  ensureHuskyHookAppends(repoRoot, "post-commit", postCommitLine);
 
   return {
     updatedPackageJson: true,
