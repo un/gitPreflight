@@ -10,6 +10,7 @@ import { writeSkipNext } from "./state";
 import { repoHasExistingPrecommitLinting } from "./precommitDetection";
 import { getShipstampEnv } from "./env";
 import { detectLinters } from "./lintersDetect";
+import { selectStagedFilesForLinters } from "./linterFiles";
 
 function printHelp() {
   process.stdout.write(
@@ -101,7 +102,8 @@ function cmdReview(argv: string[]) {
   // v0: review will call the API; ensure required env is present early.
   void getShipstampEnv();
 
-  void detectLinters(repoRoot);
+  const detectedLinters = detectLinters(repoRoot);
+  void selectStagedFilesForLinters(stagedFiles, detectedLinters);
 
   // v0 scaffold: real staged diff collection lands in later steps.
   const md = formatReviewResultMarkdown({ status: "PASS", findings: [] });
