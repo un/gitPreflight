@@ -32,6 +32,7 @@ export function DashboardClient() {
     selectedOrgId ? { orgId: selectedOrgId as any, day } : "skip"
   );
   const repos = useQuery(api.repos.listForOrg, selectedOrgId ? { orgId: selectedOrgId as any } : "skip");
+  const members = useQuery(api.memberships.listForOrg, selectedOrgId ? { orgId: selectedOrgId as any } : "skip");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
 
@@ -192,6 +193,32 @@ export function DashboardClient() {
                       <div className="shrink-0 text-xs text-muted-foreground">{r.defaultBranch}</div>
                     </div>
                   </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Members</CardTitle>
+            <CardDescription>Org members and roles</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {members === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading members...</div>
+            ) : members.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No members found.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {members.map((m) => (
+                  <div key={m.userId} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{m.userId}</div>
+                      <div className="text-xs text-muted-foreground">Joined {new Date(m.createdAtMs).toLocaleDateString()}</div>
+                    </div>
+                    <div className="shrink-0 text-xs text-muted-foreground">{m.role}</div>
+                  </div>
                 ))}
               </div>
             )}
