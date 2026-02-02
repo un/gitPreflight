@@ -32,8 +32,15 @@ function dayKeyUtc(nowMs: number): string {
 
 const ORG_SENTINEL_USER_ID = "__org__";
 
-const FREE_DAILY_USER_REVIEW_LIMIT = 50;
-const FREE_DAILY_ORG_REVIEW_LIMIT = 200;
+const FREE_DAILY_SEAT_REVIEW_LIMIT = 69;
+const PAID_DAILY_SEAT_REVIEW_LIMIT = 420;
+const ENTERPRISE_DAILY_SEAT_REVIEW_LIMIT = 1337;
+
+function seatLimitForPlanTier(planTier: string): number {
+  if (planTier === "enterprise") return ENTERPRISE_DAILY_SEAT_REVIEW_LIMIT;
+  if (planTier === "paid") return PAID_DAILY_SEAT_REVIEW_LIMIT;
+  return FREE_DAILY_SEAT_REVIEW_LIMIT;
+}
 
 export const consumeReviewRun = mutation({
   args: {
@@ -61,9 +68,17 @@ export const consumeReviewRun = mutation({
     const auth = await verifyApiToken(ctx, args.token);
     if (!auth) throw new Error("unauthorized");
 
-    const planTier = args.planTier === "paid" ? "paid" : "free";
-    const userLimit = planTier === "paid" ? null : FREE_DAILY_USER_REVIEW_LIMIT;
-    const orgLimit = planTier === "paid" ? null : FREE_DAILY_ORG_REVIEW_LIMIT;
+    const planTier = args.planTier === "enterprise" ? "enterprise" : args.planTier === "paid" ? "paid" : "free";
+    const seatLimit = seatLimitForPlanTier(planTier);
+
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_orgId", (q) => q.eq("orgId", auth.orgId))
+      .collect();
+    const seats = Math.max(1, memberships.length);
+
+    const userLimit = seatLimit;
+    const orgLimit = seatLimit * seats;
     const day = dayKeyUtc(Date.now());
 
     let userRec = await ctx.db
@@ -154,7 +169,7 @@ export const getMyDailyUsage = query({
       )
       .unique();
 
-    const limit = FREE_DAILY_USER_REVIEW_LIMIT;
+    const limit = FREE_DAILY_SEAT_REVIEW_LIMIT;
     const count = rec?.count ?? 0;
     return { day: args.day, count, limit, remaining: Math.max(0, limit - count) };
   }
@@ -182,7 +197,12 @@ export const getOrgDailyUsage = query({
       )
       .unique();
 
-    const limit = FREE_DAILY_ORG_REVIEW_LIMIT;
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+      .collect();
+    const seats = Math.max(1, memberships.length);
+    const limit = FREE_DAILY_SEAT_REVIEW_LIMIT * seats;
     const count = rec?.count ?? 0;
     return { day: args.day, count, limit, remaining: Math.max(0, limit - count) };
   }
