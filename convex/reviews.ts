@@ -1,5 +1,5 @@
-import { mutation } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
@@ -35,6 +35,21 @@ async function verifyApiToken(
   if (rec.revokedAtMs) return null;
   if (!rec.orgId) return null;
   return { userId: rec.userId, orgId: rec.orgId };
+}
+
+type AuthzCtx = Pick<QueryCtx, "db" | "auth"> | Pick<MutationCtx, "db" | "auth">;
+
+async function requireOrgMember(ctx: AuthzCtx, orgId: Id<"orgs">) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Unauthorized");
+
+  const membership = await ctx.db
+    .query("memberships")
+    .withIndex("by_orgId_userId", (q) => q.eq("orgId", orgId).eq("userId", identity.subject))
+    .unique();
+
+  if (!membership) throw new Error("Forbidden");
+  return { userId: identity.subject, role: membership.role };
 }
 
 export const recordRun = mutation({
@@ -102,5 +117,67 @@ export const recordRun = mutation({
     }
 
     return { runId };
+  }
+});
+
+export const listRecentForOrg = query({
+  args: {
+    orgId: v.id("orgs"),
+    limit: v.optional(v.number())
+  },
+  handler: async (ctx, args) => {
+    await requireOrgMember(ctx, args.orgId);
+
+    const limit = Math.max(1, Math.min(args.limit ?? 20, 50));
+    const runs = await ctx.db
+      .query("reviewRuns")
+      .withIndex("by_orgId_createdAtMs", (q) => q.eq("orgId", args.orgId))
+      .order("desc")
+      .take(limit);
+
+    const out: Array<{
+      run: Doc<"reviewRuns">;
+      repo: Doc<"repos"> | null;
+      counts: { note: number; minor: number; major: number; total: number };
+    }> = [];
+
+    for (const run of runs) {
+      const repo = await ctx.db.get(run.repoId);
+      const findings = await ctx.db
+        .query("findings")
+        .withIndex("by_reviewRunId", (q) => q.eq("reviewRunId", run._id))
+        .collect();
+
+      const counts = { note: 0, minor: 0, major: 0, total: findings.length };
+      for (const f of findings) {
+        if (f.severity === "major") counts.major++;
+        else if (f.severity === "minor") counts.minor++;
+        else counts.note++;
+      }
+
+      out.push({ run, repo, counts });
+    }
+
+    return out;
+  }
+});
+
+export const getRun = query({
+  args: {
+    runId: v.id("reviewRuns")
+  },
+  handler: async (ctx, args) => {
+    const run = await ctx.db.get(args.runId);
+    if (!run) return null;
+
+    await requireOrgMember(ctx, run.orgId);
+
+    const repo = await ctx.db.get(run.repoId);
+    const findings = await ctx.db
+      .query("findings")
+      .withIndex("by_reviewRunId", (q) => q.eq("reviewRunId", run._id))
+      .collect();
+
+    return { run, repo, findings };
   }
 });

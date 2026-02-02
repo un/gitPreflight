@@ -12,6 +12,10 @@ export function DashboardClient() {
   const identity = useQuery(api.auth.getCurrentUser);
   const session = authClient.useSession();
   const orgs = useQuery(api.orgs.listMine);
+  const recent = useQuery(
+    api.reviews.listRecentForOrg,
+    orgs && orgs.length > 0 ? { orgId: orgs[0]!.org._id, limit: 10 } : "skip"
+  );
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
 
@@ -72,6 +76,48 @@ export function DashboardClient() {
               <pre className="overflow-auto rounded-md bg-muted px-3 py-2 text-xs">
                 {JSON.stringify(identity, null, 2)}
               </pre>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent reviews</CardTitle>
+            <CardDescription>Last 10 runs for your first org</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {orgs === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading org...</div>
+            ) : orgs.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No orgs yet.</div>
+            ) : recent === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading runs...</div>
+            ) : recent.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No runs yet.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {recent.map((r) => (
+                  <Link
+                    key={r.run._id}
+                    href={`/dashboard/runs/${r.run._id}`}
+                    className="rounded-md border px-3 py-2 text-sm hover:bg-muted"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">
+                          {r.repo?.normalizedOriginUrl ?? "(unknown repo)"} · {r.run.branch}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {new Date(r.run.createdAtMs).toLocaleString()} · {r.run.status}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-xs text-muted-foreground">
+                        {r.counts.major} major · {r.counts.minor} minor · {r.counts.note} note
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
