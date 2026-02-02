@@ -1,0 +1,14 @@
+{
+  "name": "shipstamp",
+  "private": true,
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "build": "pnpm -r run build --if-present",
+    "typecheck": "pnpm -r run typecheck --if-present",
+    "lint": "pnpm -r run lint --if-present",
+    "test": "pnpm -r run test --if-present"
+  }
+}
