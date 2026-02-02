@@ -16,7 +16,7 @@ const ReviewRequestSchema = z.object({
   originUrl: z.string().min(1).optional(),
   normalizedOriginUrl: z.string().min(1).optional(),
   branch: z.string().min(1),
-  planTier: z.string().min(1),
+  planTier: z.enum(["free", "paid"]),
   stagedPatch: z.string(),
   stagedFiles: z.array(
     z.object({
@@ -54,6 +54,41 @@ export async function POST(request: Request) {
   const parsed = ReviewRequestSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_request", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  // Enforce daily usage before invoking model workflows.
+  try {
+    const usage = await client.mutation(api.usage.consumeReviewRun, {
+      token,
+      planTier: parsed.data.planTier
+    });
+
+    if (!usage.allowed) {
+      return NextResponse.json({
+        status: "FAIL",
+        findings: [
+          {
+            path: "package.json",
+            severity: "minor",
+            title: "Daily review limit reached",
+            message: `You have reached your daily Shipstamp review limit for ${usage.day} (${usage.count}/${usage.limit}).`
+          }
+        ]
+      });
+    }
+  } catch {
+    // If usage enforcement fails, treat as unchecked policy by returning a note and letting the CLI decide.
+    return NextResponse.json({
+      status: "UNCHECKED",
+      findings: [
+        {
+          path: "package.json",
+          severity: "note",
+          title: "Usage tracking unavailable",
+          message: "Shipstamp could not verify usage limits right now."
+        }
+      ]
+    });
   }
 
   const result = await reviewWorkflow(parsed.data);

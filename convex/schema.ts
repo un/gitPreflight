@@ -79,7 +79,8 @@ export default defineSchema({
     count: v.number()
   })
     .index("by_orgId_day", ["orgId", "day"])
-    .index("by_userId_day", ["userId", "day"]),
+    .index("by_userId_day", ["userId", "day"])
+    .index("by_orgId_userId_day", ["orgId", "userId", "day"]),
 
   modelStats: defineTable({
     orgId: v.id("orgs"),

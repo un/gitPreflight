@@ -56,6 +56,16 @@ export class ShipstampApiClient {
 
       const text = await res.text();
       if (!res.ok) {
+        // v0 policy: treat 5xx as transient (unchecked), but surface 4xx as hard failures.
+        if (res.status >= 500) {
+          const e = new Error(`Shipstamp API error (${res.status})`) as any;
+          e.name = "ShipstampServerError";
+          e.code = "ESHIPSTAMP_SERVER";
+          e.status = res.status;
+          e.bodyText = text;
+          throw e;
+        }
+
         throw new ShipstampApiError(`Shipstamp API error (${res.status})`, res.status, text);
       }
 
