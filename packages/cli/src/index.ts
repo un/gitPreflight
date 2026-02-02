@@ -17,6 +17,8 @@ import { initRepo } from "./init";
 import { isOfflineOrTimeoutError } from "./errors";
 import { runPostCommit } from "./postCommit";
 import { deviceAuthLogin } from "./deviceAuth";
+import { loadToken } from "./token";
+import { readTextFile } from "./files";
 
 function printHelp() {
   process.stdout.write(
@@ -50,7 +52,7 @@ function unknownCommand(cmd: string | undefined) {
   return 2;
 }
 
-function cmdReview(argv: string[]) {
+async function cmdReview(argv: string[]) {
   const parsed = parseArgs({
     args: argv,
     options: {
@@ -148,8 +150,9 @@ function cmdReview(argv: string[]) {
 
     let findings: Array<import("@shipstamp/core").Finding> = [];
 
+    let apiBaseUrl: string | null = null;
     try {
-      void getShipstampEnv();
+      apiBaseUrl = getShipstampEnv().SHIPSTAMP_API_BASE_URL;
     } catch (err) {
       findings.push({
         path: "package.json",
@@ -161,6 +164,55 @@ function cmdReview(argv: string[]) {
           "`export SHIPSTAMP_API_BASE_URL=https://api.shipstamp.example`\n\n" +
           `Error: ${(err as Error).message}`
       });
+    }
+
+    if (apiBaseUrl) {
+      let token: string | null = null;
+      try {
+        token = loadToken();
+      } catch {
+        findings.push({
+          path: "package.json",
+          severity: "minor",
+          title: "Not authenticated",
+          message: "Run `shipstamp auth login` to authenticate the CLI."
+        });
+      }
+
+      if (token) {
+        const hashed = hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles);
+        const files = hashed.hashed.map((h) => ({ path: h.path, sha256: h.sha256 }));
+
+        const checkRes = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/api/v1/instructions/check`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ files })
+        });
+
+        if (checkRes.ok) {
+          const payload = (await checkRes.json()) as { missing: Array<{ path: string; sha256: string }> };
+          const missingFiles = payload.missing ?? [];
+          if (missingFiles.length > 0) {
+            const uploadFiles = missingFiles.map((m) => ({
+              path: m.path,
+              sha256: m.sha256,
+              content: readTextFile(repoRoot, m.path)
+            }));
+
+            await fetch(`${apiBaseUrl.replace(/\/$/, "")}/api/v1/instructions/upload`, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({ files: uploadFiles })
+            });
+          }
+        }
+      }
     }
 
     if (repoConfig.linters.enabled) {
@@ -213,7 +265,7 @@ function cmdReview(argv: string[]) {
   }
 }
 
-function cmdInit(argv: string[]) {
+async function cmdInit(argv: string[]) {
   const parsed = parseArgs({
     args: argv,
     options: {
@@ -247,7 +299,7 @@ function cmdInit(argv: string[]) {
   return 0;
 }
 
-function cmdAuth(argv: string[]) {
+async function cmdAuth(argv: string[]) {
   const sub = argv[0];
   if (sub === "login") {
     const parsed = parseArgs({
@@ -263,24 +315,22 @@ function cmdAuth(argv: string[]) {
       return 0;
     }
 
-    const env = getShipstampEnv();
-    deviceAuthLogin(env.SHIPSTAMP_API_BASE_URL)
-      .then(() => {
-        process.stdout.write("Shipstamp CLI authenticated.\n");
-      })
-      .catch((err) => {
-        process.stderr.write(`Auth failed: ${(err as Error).message}\n`);
-        process.exitCode = 2;
-      });
-
-    return 0;
+    try {
+      const env = getShipstampEnv();
+      await deviceAuthLogin(env.SHIPSTAMP_API_BASE_URL);
+      process.stdout.write("Shipstamp CLI authenticated.\n");
+      return 0;
+    } catch (err) {
+      process.stderr.write(`Auth failed: ${(err as Error).message}\n`);
+      return 2;
+    }
   }
 
   process.stderr.write("Usage: shipstamp auth login\n");
   return 2;
 }
 
-function cmdInternal(argv: string[]) {
+async function cmdInternal(argv: string[]) {
   const sub = argv[0];
 
   if (sub === "post-commit") {
@@ -298,7 +348,7 @@ function cmdInternal(argv: string[]) {
   return 2;
 }
 
-function cmdSkipNext(argv: string[]) {
+async function cmdSkipNext(argv: string[]) {
   const parsed = parseArgs({
     args: argv,
     options: {
@@ -328,7 +378,7 @@ function cmdSkipNext(argv: string[]) {
   return 0;
 }
 
-export function runCli(argv: string[] = process.argv.slice(2)) {
+export async function runCli(argv: string[] = process.argv.slice(2)) {
   const [cmd, ...rest] = argv;
 
   if (!cmd || cmd === "--help" || cmd === "-h") {
@@ -336,16 +386,17 @@ export function runCli(argv: string[] = process.argv.slice(2)) {
     return 0;
   }
 
-  if (cmd === "review") return cmdReview(rest);
-  if (cmd === "init") return cmdInit(rest);
-  if (cmd === "auth") return cmdAuth(rest);
-  if (cmd === "skip-next") return cmdSkipNext(rest);
-  if (cmd === "internal") return cmdInternal(rest);
+  if (cmd === "review") return await cmdReview(rest);
+  if (cmd === "init") return await cmdInit(rest);
+  if (cmd === "auth") return await cmdAuth(rest);
+  if (cmd === "skip-next") return await cmdSkipNext(rest);
+  if (cmd === "internal") return await cmdInternal(rest);
 
   return unknownCommand(cmd);
 }
 
 if (require.main === module) {
-  const code = runCli();
-  process.exitCode = code;
+  runCli().then((code) => {
+    process.exitCode = code;
+  });
 }

@@ -4,5 +4,11 @@
 
 const { runCli } = require("@shipstamp/cli");
 
-const code = runCli(process.argv.slice(2));
-process.exitCode = code;
+Promise.resolve(runCli(process.argv.slice(2)))
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((err) => {
+    process.stderr.write(`Shipstamp internal error: ${err?.message ?? String(err)}\n`);
+    process.exitCode = 2;
+  });
