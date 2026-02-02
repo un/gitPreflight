@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
@@ -71,5 +71,31 @@ export const consumeReviewRun = mutation({
 
     await ctx.db.patch(rec._id, { count: rec.count + 1 });
     return { allowed: true, day, count: rec.count + 1, limit };
+  }
+});
+
+export const getMyDailyUsage = query({
+  args: {
+    orgId: v.id("orgs"),
+    day: v.string()
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_orgId_userId", (q) => q.eq("orgId", args.orgId).eq("userId", identity.subject))
+      .unique();
+    if (!membership) throw new Error("Forbidden");
+
+    const rec = await ctx.db
+      .query("usageDaily")
+      .withIndex("by_orgId_userId_day", (q) =>
+        q.eq("orgId", args.orgId).eq("userId", identity.subject).eq("day", args.day)
+      )
+      .unique();
+
+    return { day: args.day, count: rec?.count ?? 0 };
   }
 });

@@ -12,9 +12,18 @@ export function DashboardClient() {
   const identity = useQuery(api.auth.getCurrentUser);
   const session = authClient.useSession();
   const orgs = useQuery(api.orgs.listMine);
+  const day = new Date().toISOString().slice(0, 10);
   const recent = useQuery(
     api.reviews.listRecentForOrg,
     orgs && orgs.length > 0 ? { orgId: orgs[0]!.org._id, limit: 10 } : "skip"
+  );
+  const myUsage = useQuery(
+    api.usage.getMyDailyUsage,
+    orgs && orgs.length > 0 ? { orgId: orgs[0]!.org._id, day } : "skip"
+  );
+  const modelStats = useQuery(
+    api.stats.listModelStatsForOrgDay,
+    orgs && orgs.length > 0 ? { orgId: orgs[0]!.org._id, day } : "skip"
   );
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
@@ -116,6 +125,47 @@ export function DashboardClient() {
                       </div>
                     </div>
                   </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Usage today</CardTitle>
+            <CardDescription>{day} (UTC)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {myUsage === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading usage...</div>
+            ) : (
+              <div className="text-sm">
+                <span className="text-muted-foreground">Reviews:</span> {myUsage.count}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Models today</CardTitle>
+            <CardDescription>Per-model runs and findings</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {modelStats === undefined ? (
+              <div className="text-sm text-muted-foreground">Loading model stats...</div>
+            ) : modelStats.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No stats yet.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {modelStats.map((s) => (
+                  <div key={s._id} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0 truncate font-medium">{s.model}</div>
+                    <div className="shrink-0 text-xs text-muted-foreground">
+                      {s.runs} runs · {s.findings} findings{s.avgLatencyMs != null ? ` · ${s.avgLatencyMs}ms avg` : ""}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
