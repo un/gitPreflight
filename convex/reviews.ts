@@ -11,7 +11,8 @@ const FindingInput = v.object({
   suggestion: v.optional(v.string()),
   line: v.optional(v.number()),
   agreementAgreed: v.optional(v.number()),
-  agreementTotal: v.optional(v.number())
+  agreementTotal: v.optional(v.number()),
+  modelVotes: v.optional(v.array(v.string()))
 });
 
 async function sha256Hex(input: string): Promise<string> {
@@ -118,7 +119,8 @@ export const recordRun = mutation({
         suggestion: f.suggestion,
         line: f.line,
         agreementAgreed: f.agreementAgreed,
-        agreementTotal: f.agreementTotal
+        agreementTotal: f.agreementTotal,
+        modelVotes: f.modelVotes
       });
     }
 

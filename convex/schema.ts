@@ -71,7 +71,8 @@ export default defineSchema({
     suggestion: v.optional(v.string()),
     line: v.optional(v.number()),
     agreementAgreed: v.optional(v.number()),
-    agreementTotal: v.optional(v.number())
+    agreementTotal: v.optional(v.number()),
+    modelVotes: v.optional(v.array(v.string()))
   }).index("by_reviewRunId", ["reviewRunId"]),
 
   usageDaily: defineTable({

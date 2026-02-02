@@ -63,6 +63,7 @@ export function mergeFindings(perModel: PerModelFindings[]): Finding[] {
 
   const merged = [...byKey.values()].map((v) => {
     v.merged.agreement = { agreed: v.modelVotes.size, total: totalModels };
+    v.merged.modelVotes = [...v.modelVotes].sort((a, b) => a.localeCompare(b));
     return v.merged;
   });
 

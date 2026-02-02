@@ -141,7 +141,8 @@ export async function POST(request: Request) {
         suggestion: f.suggestion,
         line: f.line,
         agreementAgreed: f.agreement?.agreed,
-        agreementTotal: f.agreement?.total
+        agreementTotal: f.agreement?.total,
+        modelVotes: f.modelVotes
       }))
     });
   } catch {

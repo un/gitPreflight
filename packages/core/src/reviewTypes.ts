@@ -17,6 +17,9 @@ export type Finding = {
   hunk?: string;
   suggestion?: string;
   agreement?: Agreement;
+
+  // Optional diagnostic metadata (not required for Markdown output).
+  modelVotes?: string[];
 };
 
 export type ReviewResult = {

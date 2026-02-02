@@ -24,9 +24,9 @@
     ]
   },
   "scripts": {
-    "build": "pnpm -r run build --if-present",
-    "typecheck": "pnpm -r run typecheck --if-present",
-    "lint": "pnpm -r run lint --if-present",
-    "test": "pnpm -r run test --if-present"
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
+    "test": "pnpm -r --if-present run test"
   }
 }
