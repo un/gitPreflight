@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { isAuthenticated } from "@/lib/auth-server";
 
-export default function MarketingLayout({
+export default async function MarketingLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const ok = await isAuthenticated();
+
+  const ctaHref = ok ? "/dashboard" : "/sign-in";
+  const ctaLabel = ok ? "Dashboard" : "Sign in";
+
   return (
     <div className="min-h-screen bg-background text-foreground font-mono">
       <a
@@ -23,10 +29,10 @@ export default function MarketingLayout({
 
           <div className="flex items-center gap-2">
             <Link
-              href="/sign-in"
+              href={ctaHref}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              Sign in
+              {ctaLabel}
             </Link>
           </div>
         </div>
