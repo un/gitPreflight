@@ -27,6 +27,33 @@ export default async function MarketingLayout({
             shipstamp
           </Link>
 
+          <nav aria-label="Sections" className="hidden items-center gap-1 text-sm sm:flex">
+            <Link
+              href="/#problem"
+              className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              Problem
+            </Link>
+            <Link
+              href="/#how-it-works"
+              className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              How it works
+            </Link>
+            <Link
+              href="/#pricing"
+              className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              Pricing
+            </Link>
+            <Link
+              href="/#faq"
+              className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              FAQ
+            </Link>
+          </nav>
+
           <div className="flex items-center gap-2">
             <Link
               href={ctaHref}

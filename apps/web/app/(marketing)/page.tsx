@@ -27,6 +27,28 @@ export default function Home() {
       </Card>
 
       <ConvexHealth />
+
+      <hr className="border-border" />
+
+      <section id="problem" className="scroll-mt-24">
+        <h2 className="text-base font-semibold">Problem</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Landing page content is coming next.</p>
+      </section>
+
+      <section id="how-it-works" className="scroll-mt-24">
+        <h2 className="text-base font-semibold">How it works</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Landing page content is coming next.</p>
+      </section>
+
+      <section id="pricing" className="scroll-mt-24">
+        <h2 className="text-base font-semibold">Pricing</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Landing page content is coming next.</p>
+      </section>
+
+      <section id="faq" className="scroll-mt-24">
+        <h2 className="text-base font-semibold">FAQ</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Landing page content is coming next.</p>
+      </section>
     </div>
   );
 }
