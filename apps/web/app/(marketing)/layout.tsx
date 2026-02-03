@@ -3,6 +3,8 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { isAuthenticated } from "@/lib/auth-server";
 
 const GITHUB_REPO_URL = "https://github.com/un/shipstamp";
+const NOISE_DATA_URL =
+  "data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20width%3D'128'%20height%3D'128'%3E%3Cfilter%20id%3D'n'%3E%3CfeTurbulence%20type%3D'fractalNoise'%20baseFrequency%3D'.8'%20numOctaves%3D'3'%20stitchTiles%3D'stitch'/%3E%3C/filter%3E%3Crect%20width%3D'128'%20height%3D'128'%20filter%3D'url(%23n)'%20opacity%3D'.4'/%3E%3C/svg%3E";
 
 export default async function MarketingLayout({
   children,
@@ -15,7 +17,14 @@ export default async function MarketingLayout({
   const ctaLabel = ok ? "Dashboard" : "Sign in";
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-mono text-sm leading-6">
+    <div className="relative isolate min-h-screen bg-background text-foreground font-mono text-sm leading-6">
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute inset-0 opacity-60 [background-size:44px_44px] [background-image:linear-gradient(to_right,rgba(0,0,0,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.06)_1px,transparent_1px)] dark:[background-image:linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)]" />
+        <div
+          className="absolute inset-0 opacity-[0.04] mix-blend-multiply dark:mix-blend-screen"
+          style={{ backgroundImage: `url("${NOISE_DATA_URL}")`, backgroundSize: "240px 240px" }}
+        />
+      </div>
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:border focus:bg-background focus:px-3 focus:py-2"
