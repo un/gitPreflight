@@ -2,6 +2,29 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { isAuthenticated } from "@/lib/auth-server";
 
+const MARKDOWN_CONTRACT_EXCERPT = [
+  "# Shipstamp Review",
+  "",
+  "Result: PASS",
+  "Counts: note=0 minor=0 major=0",
+  "",
+  "## Findings",
+  "",
+  "### path/to/file.ts",
+  "",
+  "#### <short title>",
+  "Path: path/to/file.ts",
+  "Line: 42",
+  "Severity: minor",
+  "Agreement: 2/3",
+  "",
+  "<explanation paragraphs>",
+  "",
+  "```suggestion",
+  "<replacement code>",
+  "```",
+].join("\n");
+
 export default async function Home() {
   const ok = await isAuthenticated();
   const primaryHref = ok ? "/dashboard" : "/sign-in";
@@ -73,6 +96,19 @@ export default async function Home() {
           <li>Shipstamp reviews the staged diff and prints a stable Markdown report (PASS, minor, major).</li>
           <li>Your agent applies `suggestion` blocks, retries the commit, and iterates until PASS.</li>
         </ol>
+      </section>
+
+      <section aria-label="Markdown contract" className="pt-2">
+        <h2 className="text-base font-semibold">Markdown contract</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Output is stable by design so your agent can parse it, apply suggestions, and rerun.
+        </p>
+        <div className="mt-4 rounded-lg border bg-card">
+          <div className="border-b px-3 py-2 text-xs text-muted-foreground">Excerpt: packages/core/MARKDOWN_CONTRACT.md</div>
+          <pre className="overflow-x-auto px-3 py-2 text-xs leading-5">
+            <code>{MARKDOWN_CONTRACT_EXCERPT}</code>
+          </pre>
+        </div>
       </section>
 
       <section id="pricing" className="scroll-mt-24">
