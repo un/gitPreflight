@@ -39,7 +39,16 @@ export default async function Home() {
 
       <section id="problem" className="scroll-mt-24">
         <h2 className="text-base font-semibold">Problem</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Landing page content is coming next.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          If you have ever opened a PR and immediately regretted the comment thread you are about to create.
+        </p>
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm">
+          <li>PR review happens after push, when the diff is already public and the context has shifted.</li>
+          <li>Agents and bots dump feedback into PR threads, not into the codebase.</li>
+          <li>The result is noise: long comment chains, repeated nits, and low-signal review for humans.</li>
+          <li>Fix loops get slower: push -&gt; bot feedback -&gt; agent patch -&gt; more feedback -&gt; repeat.</li>
+          <li>By the time a human reviews, they are reading the aftermath instead of the intent.</li>
+        </ul>
       </section>
 
       <section id="how-it-works" className="scroll-mt-24">
