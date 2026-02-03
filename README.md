@@ -1,10 +1,12 @@
 # Shipstamp (v0)
 
-Shipstamp is a staged-only, pre-commit code review gate designed for AI coding agents.
+Clean PRs by default. Fix issues at commit time.
+
+Shipstamp is a staged-only, pre-commit code review gate designed for AI coding agents. It runs on `git commit`, reviews the staged diff only (`git diff --cached`), and prints stable Markdown your agent can apply before you push.
 
 - Runs on `git commit` via a pre-commit hook.
 - Reviews the staged diff only (`git diff --cached`).
-- Prints a stable, LLM-friendly Markdown report with actionable ```suggestion blocks.
+- Prints a stable, LLM-friendly Markdown report with actionable suggestion blocks.
 - Blocks commits when it finds `minor` or `major` issues.
 
 ## Requirements
