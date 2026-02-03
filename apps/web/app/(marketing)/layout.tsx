@@ -2,6 +2,8 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { isAuthenticated } from "@/lib/auth-server";
 
+const GITHUB_REPO_URL = "https://github.com/un/shipstamp";
+
 export default async function MarketingLayout({
   children,
 }: Readonly<{
@@ -97,6 +99,36 @@ export default async function MarketingLayout({
       <main id="content" className="mx-auto w-full max-w-[78ch] px-6 py-10">
         {children}
       </main>
+
+      <footer className="border-t">
+        <div className="mx-auto w-full max-w-[78ch] px-6 py-8 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>Shipstamp</div>
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md px-1.5 py-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              >
+                GitHub
+              </a>
+              <Link
+                href="/#pricing"
+                className="rounded-md px-1.5 py-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              >
+                Pricing
+              </Link>
+              <Link
+                href="/#faq"
+                className="rounded-md px-1.5 py-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              >
+                FAQ
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
