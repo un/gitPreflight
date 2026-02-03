@@ -28,14 +28,14 @@ import { loadToken } from "./token";
 import { readTextFile } from "./files";
 import { loadRepoEnv } from "./dotenvFile";
 import { ShipstampApiClient, ShipstampApiError } from "./apiClient";
-import { assertSourceBuild } from "./buildFlags";
-import { runLocalAgentMarkdownReview } from "./localAgent";
-import { renderReviewTui } from "./tui";
+import { assertSourceBuild, SHIPSTAMP_OFFICIAL_BUILD } from "./buildFlags";
+import { emitMarkdown, resolveShipstampUi } from "./ui";
+import { SHIPSTAMP_CLI_VERSION } from "./version";
 
 function printHelp() {
   process.stdout.write(
     [
-      `shipstamp (v0 scaffold) — core ${SHIPSTAMP_CORE_VERSION}`,
+      `shipstamp ${SHIPSTAMP_CLI_VERSION} — core ${SHIPSTAMP_CORE_VERSION}`,
       "",
       "Usage:",
       "  shipstamp <command> [options]",
@@ -48,9 +48,14 @@ function printHelp() {
       "",
       "Global options:",
       "  -h, --help             Show help",
+      "  -v, --version          Show version",
       ""
     ].join("\n")
   );
+}
+
+function printVersion() {
+  process.stdout.write(`${SHIPSTAMP_CLI_VERSION}\n`);
 }
 
 function unknownCommand(cmd: string | undefined) {
@@ -78,7 +83,8 @@ async function cmdReview(argv: string[]) {
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: shipstamp review --staged [--local-agent] [--tui|--plain]\n");
+    const localAgent = SHIPSTAMP_OFFICIAL_BUILD ? "" : " [--local-agent]";
+    process.stdout.write(`Usage: shipstamp review --staged${localAgent} [--tui|--plain]\n`);
     return 0;
   }
 
@@ -99,20 +105,23 @@ async function cmdReview(argv: string[]) {
   const branch = getBranchName() ?? "(detached)";
   void getHeadSha();
 
-  const inHook = Boolean(process.env.GIT_DIR) || process.env.CI === "1" || process.env.CI === "true";
-  const forcePlain = Boolean((parsed.values as any).plain) || process.env.SHIPSTAMP_UI === "plain";
-  const forceTui = Boolean((parsed.values as any).tui) || process.env.SHIPSTAMP_UI === "tui";
   const isBunRuntime = typeof (globalThis as any).Bun !== "undefined";
-  const autoTui = Boolean(process.stdout.isTTY) && !inHook;
-  const useTui = !forcePlain && isBunRuntime && (forceTui || autoTui);
+
+  const env = process.env;
+  const inCi = env.CI === "1" || env.CI === "true" || env.GITHUB_ACTIONS === "1" || env.GITHUB_ACTIONS === "true";
+  const inHook = env.SHIPSTAMP_HOOK === "1" || Boolean(env.GIT_DIR);
+  const stdoutIsTty = Boolean(process.stdout.isTTY);
+  const ui = resolveShipstampUi({
+    inCi,
+    inHook,
+    stdoutIsTty,
+    isBunRuntime,
+    argv: { plain: Boolean((parsed.values as any).plain), tui: Boolean((parsed.values as any).tui) },
+    env
+  });
 
   const emit = async (md: string) => {
-    if (useTui) {
-      await renderReviewTui(md);
-      return;
-    }
-    process.stdout.write(md);
-    process.stdout.write("\n");
+    await emitMarkdown({ ui, markdown: md });
   };
 
   const skip = readSkipNext(repoRoot);
@@ -180,6 +189,19 @@ async function cmdReview(argv: string[]) {
     const pm = detectPackageManager(repoRoot);
 
     let findings: Array<import("@shipstamp/core").Finding> = [];
+
+    if (SHIPSTAMP_OFFICIAL_BUILD && useLocalAgent) {
+      findings.push({
+        path: "package.json",
+        severity: "minor",
+        title: "Local-agent mode disabled",
+        message: "Local-agent mode is disabled in official Shipstamp builds. Build from source to enable source-only features."
+      });
+
+      const md = formatReviewResultMarkdown({ status: "FAIL", findings });
+      await emit(md);
+      return 1;
+    }
 
     const repoEnv = loadRepoEnv(repoRoot);
     const mergedEnv = { ...process.env, ...repoEnv } as NodeJS.ProcessEnv;
@@ -301,7 +323,7 @@ async function cmdReview(argv: string[]) {
       return 1;
     }
 
-    if (useLocalAgent) {
+    if (!SHIPSTAMP_OFFICIAL_BUILD && useLocalAgent) {
       try {
         assertSourceBuild("Local-agent mode");
       } catch (err) {
@@ -351,6 +373,7 @@ async function cmdReview(argv: string[]) {
         (instructionSections ? `Instruction files:\n\n${instructionSections}\n\n` : "") +
         `Staged patch:\n${stagedPatch}`;
 
+      const { runLocalAgentMarkdownReview } = await import("./localAgent");
       const local = runLocalAgentMarkdownReview({
         command: cmd!,
         cwd: repoRoot,
@@ -627,6 +650,11 @@ export async function runCli(argv: string[] = process.argv.slice(2)) {
 
   if (!cmd || cmd === "--help" || cmd === "-h") {
     printHelp();
+    return 0;
+  }
+
+  if (cmd === "--version" || cmd === "-v") {
+    printVersion();
     return 0;
   }
 
