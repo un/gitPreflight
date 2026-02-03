@@ -1,32 +1,30 @@
-import { buttonVariants } from "@/components/ui/button-variants";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConvexHealth } from "../ConvexHealth";
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { isAuthenticated } from "@/lib/auth-server";
 
-export default function Home() {
+export default async function Home() {
+  const ok = await isAuthenticated();
+  const primaryHref = ok ? "/dashboard" : "/sign-in";
+  const primaryLabel = ok ? "Dashboard" : "Sign in";
+
   return (
-    <div className="flex flex-col gap-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Shipstamp</CardTitle>
-          <CardDescription>Staged-only pre-commit reviews for AI agents.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="text-sm text-muted-foreground">
-            This page renders coss ui components installed via the shadcn CLI.
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/sign-in" className={buttonVariants({ variant: "default" })}>
-              Sign in
-            </Link>
-            <Link href="/dashboard" className={buttonVariants({ variant: "outline" })}>
-              Dashboard
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-10">
+      <section aria-label="Hero" className="pt-2">
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Shipstamp</h1>
+        <p className="mt-4 text-sm text-muted-foreground">Clean PRs by default. Fix issues at commit time.</p>
+        <p className="mt-3 text-sm text-foreground">
+          Shipstamp runs staged-only pre-commit reviews and returns stable, actionable Markdown your agent can apply before you push.
+        </p>
 
-      <ConvexHealth />
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <Link href={primaryHref} className={buttonVariants({ variant: "default" })}>
+            {primaryLabel}
+          </Link>
+          <Link href="/#pricing" className={buttonVariants({ variant: "outline" })}>
+            View pricing
+          </Link>
+        </div>
+      </section>
 
       <hr className="border-border" />
 
