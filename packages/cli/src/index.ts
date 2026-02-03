@@ -28,8 +28,7 @@ import { loadToken } from "./token";
 import { readTextFile } from "./files";
 import { loadRepoEnv } from "./dotenvFile";
 import { ShipstampApiClient, ShipstampApiError } from "./apiClient";
-import { assertSourceBuild } from "./buildFlags";
-import { runLocalAgentMarkdownReview } from "./localAgent";
+import { assertSourceBuild, SHIPSTAMP_OFFICIAL_BUILD } from "./buildFlags";
 import { emitMarkdown, resolveShipstampUi } from "./ui";
 import { SHIPSTAMP_CLI_VERSION } from "./version";
 
@@ -84,7 +83,8 @@ async function cmdReview(argv: string[]) {
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: shipstamp review --staged [--local-agent] [--tui|--plain]\n");
+    const localAgent = SHIPSTAMP_OFFICIAL_BUILD ? "" : " [--local-agent]";
+    process.stdout.write(`Usage: shipstamp review --staged${localAgent} [--tui|--plain]\n`);
     return 0;
   }
 
@@ -189,6 +189,19 @@ async function cmdReview(argv: string[]) {
     const pm = detectPackageManager(repoRoot);
 
     let findings: Array<import("@shipstamp/core").Finding> = [];
+
+    if (SHIPSTAMP_OFFICIAL_BUILD && useLocalAgent) {
+      findings.push({
+        path: "package.json",
+        severity: "minor",
+        title: "Local-agent mode disabled",
+        message: "Local-agent mode is disabled in official Shipstamp builds. Build from source to enable source-only features."
+      });
+
+      const md = formatReviewResultMarkdown({ status: "FAIL", findings });
+      await emit(md);
+      return 1;
+    }
 
     const repoEnv = loadRepoEnv(repoRoot);
     const mergedEnv = { ...process.env, ...repoEnv } as NodeJS.ProcessEnv;
@@ -310,7 +323,7 @@ async function cmdReview(argv: string[]) {
       return 1;
     }
 
-    if (useLocalAgent) {
+    if (!SHIPSTAMP_OFFICIAL_BUILD && useLocalAgent) {
       try {
         assertSourceBuild("Local-agent mode");
       } catch (err) {
@@ -360,6 +373,7 @@ async function cmdReview(argv: string[]) {
         (instructionSections ? `Instruction files:\n\n${instructionSections}\n\n` : "") +
         `Staged patch:\n${stagedPatch}`;
 
+      const { runLocalAgentMarkdownReview } = await import("./localAgent");
       const local = runLocalAgentMarkdownReview({
         command: cmd!,
         cwd: repoRoot,
