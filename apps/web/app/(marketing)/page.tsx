@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { isAuthenticated } from "@/lib/auth-server";
 import { cn } from "@/lib/utils";
+import styles from "./marketing.module.css";
 
 const MARKDOWN_CONTRACT_EXCERPT = [
   "# Shipstamp Review",
@@ -32,7 +33,7 @@ export default async function Home() {
   const primaryLabel = ok ? "Dashboard" : "Sign in";
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className={cn("flex flex-col gap-10", styles.reveal)}>
       <section aria-label="Hero" className="pt-2">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Shipstamp</h1>
         <p className="mt-4 text-sm text-muted-foreground">Clean PRs by default. Fix issues at commit time.</p>

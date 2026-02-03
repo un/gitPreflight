@@ -1,0 +1,52 @@
+.reveal > * {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: fadeUp 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.reveal > :nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.reveal > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.reveal > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.reveal > :nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.reveal > :nth-child(5) {
+  animation-delay: 240ms;
+}
+
+.reveal > :nth-child(6) {
+  animation-delay: 300ms;
+}
+
+.reveal > :nth-child(7) {
+  animation-delay: 360ms;
+}
+
+.reveal > :nth-child(8) {
+  animation-delay: 420ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal > * {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
