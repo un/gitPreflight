@@ -51,6 +51,19 @@ export default async function Home() {
         </ul>
       </section>
 
+      <section aria-label="Solution" className="pt-2">
+        <h2 className="text-base font-semibold">Solution</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          PR bots comment on your PR. Shipstamp fixes your commit before it becomes a PR.
+        </p>
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm">
+          <li>Run review at commit time, not in GitHub.</li>
+          <li>Review the staged diff only (`git diff --cached`) so the scope stays small.</li>
+          <li>Output a stable Markdown report with actionable `suggestion` blocks.</li>
+          <li>Close the loop locally: your agent iterates until PASS, then you push.</li>
+        </ul>
+      </section>
+
       <section id="how-it-works" className="scroll-mt-24">
         <h2 className="text-base font-semibold">How it works</h2>
         <p className="mt-2 text-sm text-muted-foreground">Landing page content is coming next.</p>
