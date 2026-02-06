@@ -52,6 +52,7 @@ import {
 } from "./scopedInstall";
 import { runInstallWizardTui } from "./installTui";
 import { markOnboardingNoticeShown, onboardingNoticeText, shouldShowOnboardingNotice } from "./onboarding";
+import { resolvePolicy } from "./policy";
 
 function printHelp() {
   process.stdout.write(
@@ -184,6 +185,40 @@ async function cmdReview(argv: string[]) {
     await emitMarkdown({ ui, markdown: md });
   };
 
+  const policyResolution = resolvePolicy(repoRoot);
+  const effectivePolicy = policyResolution.effective;
+
+  if (inHook && effectivePolicy.policy === "disabled") {
+    const md = formatReviewResultMarkdown({
+      status: "PASS",
+      findings: [
+        {
+          path: "package.json",
+          severity: "note",
+          title: "GitPreflight disabled by policy",
+          message: `Policy is disabled (source: ${effectivePolicy.source}). Skipping review.`
+        }
+      ]
+    });
+    await emit(md);
+    return 0;
+  }
+
+  const policyWarningFinding =
+    inHook &&
+    effectivePolicy.source === "repo" &&
+    effectivePolicy.policy === "required" &&
+    (policyResolution.ignored.local || policyResolution.ignored.global)
+      ? {
+          path: "package.json",
+          severity: "note" as const,
+          title: "Repo policy override active",
+          message:
+            "Repo policy is `required`, so local/global policy overrides are ignored for this repository. " +
+            "Update `package.json#gitpreflight.policy` if you want to change enforcement for the whole repo."
+        }
+      : null;
+
   const skip = readSkipNext(repoRoot);
   if (skip) {
     clearSkipNext(repoRoot);
@@ -263,7 +298,7 @@ async function cmdReview(argv: string[]) {
 
     const pm = detectPackageManager(repoRoot);
 
-    let findings: Array<import("@gitpreflight/core").Finding> = [];
+    let findings: Array<import("@gitpreflight/core").Finding> = policyWarningFinding ? [policyWarningFinding] : [];
 
     if (GITPREFLIGHT_OFFICIAL_BUILD && useLocalAgent) {
       findings.push({
@@ -942,6 +977,7 @@ async function cmdStatus(argv: string[]) {
   }
 
   const status = getInstallStatus(repoRoot);
+  const policy = resolvePolicy(repoRoot);
 
   process.stdout.write(`Global install: ${status.global.installed ? "enabled" : "disabled"}\n`);
   if (parsed.values.verbose) {
@@ -961,6 +997,18 @@ async function cmdStatus(argv: string[]) {
   }
 
   process.stdout.write(`Effective scope: ${status.effectiveScope ?? "none"}\n`);
+  process.stdout.write(`Effective policy: ${policy.effective.policy} (source: ${policy.effective.source})\n`);
+  if (parsed.values.verbose) {
+    process.stdout.write(`  configured repo policy: ${policy.configured.repo ?? "(unset)"}\n`);
+    process.stdout.write(`  configured local policy: ${policy.configured.local ?? "(unset)"}\n`);
+    process.stdout.write(`  configured global policy: ${policy.configured.global ?? "(unset)"}\n`);
+    if (policy.ignored.local || policy.ignored.global) {
+      const ignored: string[] = [];
+      if (policy.ignored.local) ignored.push("local");
+      if (policy.ignored.global) ignored.push("global");
+      process.stdout.write(`  ignored overrides: ${ignored.join(", ")}\n`);
+    }
+  }
   return status.effectiveScope ? 0 : 1;
 }
 
