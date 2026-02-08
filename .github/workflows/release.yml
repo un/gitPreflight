@@ -35,6 +35,10 @@ jobs:
       - name: Install deps
         run: bun install --frozen-lockfile
 
+      - name: Install darwin-x64 OpenTUI runtime package
+        if: matrix.target == 'darwin-x64'
+        run: bun add --no-save @opentui/core-darwin-x64@0.1.77
+
       - name: Build binary
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
