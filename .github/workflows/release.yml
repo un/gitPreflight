@@ -97,4 +97,5 @@ jobs:
       - name: Publish
         run: |
           cd packages/gitpreflight
+          unset NODE_AUTH_TOKEN
           npm publish --access public --provenance
