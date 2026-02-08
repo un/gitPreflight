@@ -43,6 +43,10 @@ export default async function Home() {
           Review runs on <code>git commit</code> (or optional pre-push), checks only <code>git diff --cached</code>, and returns stable
           Markdown with <code>suggestion</code> blocks your agent can apply before you push.
         </p>
+        <p className="mt-3 text-sm text-foreground">
+          SaaS mode works out of the box. For local-agent mode, run <code>gitpreflight setup local-agent</code> once and GitPreflight
+          stores command config in <code>~/.config/gitpreflight/config.json</code>.
+        </p>
         <p className="mt-3 text-sm text-foreground">Tells your agent what to fix before the PR is made.</p>
         <p className="mt-2 text-sm text-foreground">No more copying LLM feedback back and forth between the PR and your agent.</p>
 
@@ -65,7 +69,7 @@ export default async function Home() {
           <div className="border-b px-3 py-2 text-xs text-muted-foreground">Install</div>
           <pre className="overflow-x-auto px-3 py-2 text-xs leading-5">
             <code>
-              {`# npm\nnpm i -g gitpreflight\ngitpreflight --help\n\n# curl\ncurl -fsSL https://gitpreflight.ai/install | bash\ngitpreflight --help`}
+              {`# npm\nnpm i -g gitpreflight\n\n# curl\ncurl -fsSL https://gitpreflight.ai/install | bash\n\n# setup\ngitpreflight auth login\ngitpreflight install\ngitpreflight setup local-agent\n\n# run\ngitpreflight review --staged --local-agent`}
             </code>
           </pre>
         </div>
@@ -136,6 +140,26 @@ export default async function Home() {
           <li>If FAIL, your agent applies `suggestion` blocks and retries. If UNCHECKED, commit is allowed but backlog must clear.</li>
           <li>Repeat until PASS, then push a clean PR.</li>
         </ol>
+      </section>
+
+      <section id="local-agent-setup" className="scroll-mt-24 pt-2" aria-label="Local-agent setup">
+        <h2 className="text-base font-semibold">Local-agent setup</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Local-agent mode is configured once, then reused on every review run.
+        </p>
+        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm">
+          <li>Run <code>gitpreflight setup local-agent</code>.</li>
+          <li>Choose your provider: <code>Codex</code>, <code>Claude</code>, or <code>OpenCode</code>.</li>
+          <li>GitPreflight probes the selected command by sending <code>hi are you alive</code> to stdin.</li>
+          <li>If probe passes (spawn ok + exit 0 + non-empty output), config is saved.</li>
+          <li>Saved files: <code>~/.config/gitpreflight/config.json</code> and <code>config.schema.json</code>.</li>
+        </ol>
+        <div className="mt-4 rounded-lg border bg-card">
+          <div className="border-b px-3 py-2 text-xs text-muted-foreground">Provider defaults</div>
+          <pre className="overflow-x-auto px-3 py-2 text-xs leading-5">
+            <code>{`Codex    -> codex\nClaude   -> claude\nOpenCode -> opencode run`}</code>
+          </pre>
+        </div>
       </section>
 
       <section aria-label="Markdown contract" className="pt-2">
@@ -233,6 +257,14 @@ export default async function Home() {
               <li>One-shot bypass: `gitpreflight skip-next --reason &quot;&lt;why&gt;&quot;`</li>
               <li>Universal bypass: `git commit --no-verify`</li>
             </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold">How do I configure local-agent mode?</h3>
+            <p className="mt-2 text-muted-foreground">
+              Run <code>gitpreflight setup local-agent</code>, pick <code>Codex</code>, <code>Claude</code>, or <code>OpenCode</code>, and
+              let GitPreflight probe the command. On success, config is saved to <code>~/.config/gitpreflight/config.json</code>.
+            </p>
           </div>
 
           <div>

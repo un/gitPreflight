@@ -59,6 +59,12 @@ export default async function MarketingLayout({
               How it works
             </Link>
             <Link
+              href="/#local-agent-setup"
+              className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              Local-agent
+            </Link>
+            <Link
               href="/#pricing"
               className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
@@ -104,6 +110,12 @@ export default async function MarketingLayout({
               className="whitespace-nowrap rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
               How it works
+            </Link>
+            <Link
+              href="/#local-agent-setup"
+              className="whitespace-nowrap rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              Local-agent
             </Link>
             <Link
               href="/#pricing"
