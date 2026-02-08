@@ -62,6 +62,14 @@ Authenticate the CLI:
 gitpreflight auth login
 ```
 
+Optional local-agent setup:
+
+```bash
+gitpreflight setup local-agent
+```
+
+The setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
+
 ## Hook setup
 
 In a repo you want to protect:
@@ -214,6 +222,23 @@ gitpreflight setup local-agent
 ```
 
 The setup flow lets you choose a provider (`Codex`, `Claude`, or `OpenCode`), probes the command with a live check, and saves config under `~/.config/gitpreflight/config.json`.
+
+Provider default commands:
+
+- `Codex` -> `codex`
+- `Claude` -> `claude`
+- `OpenCode` -> `opencode run`
+
+Probe success criteria before saving config:
+
+- command spawn succeeds
+- exit code is `0`
+- output is non-empty
+
+Config files written:
+
+- `~/.config/gitpreflight/config.json`
+- `~/.config/gitpreflight/config.schema.json`
 
 Then run reviews with local-agent mode:
 
