@@ -87,7 +87,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          registry-url: "https://registry.npmjs.org"
+
+      - name: Clear npm token-based auth for trusted publishing
+        run: |
+          npm config delete //registry.npmjs.org/:_authToken || true
+          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ]; then rm -f "$NPM_CONFIG_USERCONFIG" || true; fi
 
       - name: Set package version
         run: |
@@ -97,5 +101,4 @@ jobs:
       - name: Publish
         run: |
           cd packages/gitpreflight
-          unset NODE_AUTH_TOKEN
           npm publish --access public --provenance
