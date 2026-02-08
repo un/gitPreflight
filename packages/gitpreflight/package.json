@@ -2,6 +2,10 @@
   "name": "gitpreflight",
   "version": "0.0.0",
   "description": "GitPreflight CLI installer/wrapper (downloads the platform binary)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/un/gitPreflight"
+  },
   "bin": {
     "gitpreflight": "bin/gitpreflight.js"
   },
