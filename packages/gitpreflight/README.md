@@ -10,6 +10,9 @@ Then run:
 
 ```bash
 gitpreflight --help
+gitpreflight setup
+gitpreflight setup local-agent
+gitpreflight version
 ```
 
 `gitpreflight` is a lightweight npm wrapper that downloads and runs the official GitPreflight binary for your platform.

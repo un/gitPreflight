@@ -128,7 +128,7 @@ export function installGlobalScope(opts: { hook: InitHookMode }) {
     const currentAbs = isAbsolute(current) ? resolve(current) : resolve(join(homedir(), current));
     if (currentAbs !== managed && currentAbs !== legacyManaged) {
       throw new Error(
-        `Global core.hooksPath is already set to '${current}'. Refusing to overwrite. Unset it first or use a different install scope.`
+        `Global core.hooksPath is already set to '${current}'. Refusing to overwrite. Unset it first or use a different setup scope.`
       );
     }
   }
@@ -154,7 +154,7 @@ export function installLocalScope(repoRoot: string, opts: { hook: InitHookMode }
     const currentAbs = toAbsoluteHooksPath(repoRoot, current);
     if (currentAbs !== managed) {
       throw new Error(
-        `Local core.hooksPath is already set to '${current}'. Refusing to overwrite. Unset it first or use repo scope.`
+        `Local core.hooksPath is already set to '${current}'. Refusing to overwrite. Unset it first or use repo setup.`
       );
     }
   }

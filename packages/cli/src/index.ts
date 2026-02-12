@@ -54,6 +54,8 @@ import { markOnboardingNoticeShown, onboardingNoticeText, shouldShowOnboardingNo
 import { resolvePolicy } from "./policy";
 import { getDefaultLocalAgentCommand, getLocalAgentConfig, saveLocalAgentConfig, type LocalAgentProvider } from "./cliConfig";
 import { probeLocalAgentCommand } from "./localAgent";
+import { buildLocalAgentReviewPrompt } from "./localAgentPrompt";
+import { getOutdatedNoticeText, resolveCliUpdateStatus } from "./updateCheck";
 
 function printHelp() {
   process.stdout.write(
@@ -66,11 +68,12 @@ function printHelp() {
       "Commands:",
       "  review --staged        Review staged changes",
       "  review --push          Review commits being pushed",
-      "  install [options]      Install GitPreflight (global/local/repo)",
-      "  uninstall --scope ...  Remove GitPreflight for a scope",
-      "  status                 Show install status + effective scope",
-      "  init [--hook ...]      Install git hooks + config (v0: stub)",
+      "  version                Show current/latest CLI version",
+      "  setup [options]        Set up GitPreflight (global/local/repo)",
       "  setup local-agent      Configure local-agent command",
+      "  uninstall --scope ...  Remove GitPreflight for a scope",
+      "  status                 Show setup status + effective scope",
+      "  init [--hook ...]      Install git hooks + config (v0: stub)",
       "  auth login             Authenticate the CLI (v0: stub)",
       "  skip-next --reason ... Bypass next hook run (v0: stub)",
       "",
@@ -84,6 +87,27 @@ function printHelp() {
 
 function printVersion() {
   process.stdout.write(`${GITPREFLIGHT_CLI_VERSION}\n`);
+}
+
+async function cmdVersion(opts: { inCi: boolean; inHook: boolean }) {
+  printVersion();
+
+  const updateStatus = await resolveCliUpdateStatus({
+    currentVersion: GITPREFLIGHT_CLI_VERSION,
+    inCi: opts.inCi,
+    inHook: opts.inHook
+  });
+
+  if (updateStatus.latestVersion) {
+    process.stdout.write(`latest: v${updateStatus.latestVersion}\n`);
+  }
+
+  const updateNotice = getOutdatedNoticeText(updateStatus);
+  if (updateNotice) {
+    process.stderr.write(`${updateNotice}\n`);
+  }
+
+  return 0;
 }
 
 function unknownCommand(cmd: string | undefined) {
@@ -186,22 +210,40 @@ async function cmdReview(argv: string[]) {
     await emitMarkdown({ ui, markdown: md });
   };
 
+  const updateStatus = await resolveCliUpdateStatus({
+    currentVersion: GITPREFLIGHT_CLI_VERSION,
+    inCi,
+    inHook
+  });
+
+  const appendUpdateNoticeFinding = (findings: Array<import("@gitpreflight/core").Finding>) => {
+    const notice = getOutdatedNoticeText(updateStatus);
+    if (!notice) return findings;
+    return findings.concat({
+      path: "gitpreflight",
+      severity: "note",
+      title: "Update available",
+      message: notice
+    });
+  };
+
+  const emitReviewResult = async (status: "PASS" | "FAIL" | "UNCHECKED", findings: Array<import("@gitpreflight/core").Finding>) => {
+    const md = formatReviewResultMarkdown({ status, findings: appendUpdateNoticeFinding(findings) });
+    await emit(md);
+  };
+
   const policyResolution = resolvePolicy(repoRoot);
   const effectivePolicy = policyResolution.effective;
 
   if (inHook && effectivePolicy.policy === "disabled") {
-    const md = formatReviewResultMarkdown({
-      status: "PASS",
-      findings: [
-        {
-          path: "package.json",
-          severity: "note",
-          title: "GitPreflight disabled by policy",
-          message: `Policy is disabled (source: ${effectivePolicy.source}). Skipping review.`
-        }
-      ]
-    });
-    await emit(md);
+    await emitReviewResult("PASS", [
+      {
+        path: "package.json",
+        severity: "note",
+        title: "GitPreflight disabled by policy",
+        message: `Policy is disabled (source: ${effectivePolicy.source}). Skipping review.`
+      }
+    ]);
     return 0;
   }
 
@@ -223,18 +265,14 @@ async function cmdReview(argv: string[]) {
   const skip = readSkipNext(repoRoot);
   if (skip) {
     clearSkipNext(repoRoot);
-    const md = formatReviewResultMarkdown({
-      status: "PASS",
-      findings: [
-        {
-          path: "package.json",
-          severity: "note",
-          title: "GitPreflight skipped",
-          message: `GitPreflight skipped this run (skip-next). Reason: ${skip.reason}`
-        }
-      ]
-    });
-    await emit(md);
+    await emitReviewResult("PASS", [
+      {
+        path: "package.json",
+        severity: "note",
+        title: "GitPreflight skipped",
+        message: `GitPreflight skipped this run (skip-next). Reason: ${skip.reason}`
+      }
+    ]);
     return 0;
   }
 
@@ -242,26 +280,22 @@ async function cmdReview(argv: string[]) {
   const pendingOnBranch = pending.branches[branch] ?? [];
   if (pendingOnBranch.length > 0) {
     const list = pendingOnBranch.map((p) => `- ${p.sha}${p.reason ? ` (${p.reason})` : ""}`).join("\n");
-    const md = formatReviewResultMarkdown({
-      status: "FAIL",
-      findings: [
-        {
-          path: "package.json",
-          severity: "minor",
-          title: "Unchecked backlog on this branch",
-          message:
-            (mode === "push"
-              ? "GitPreflight previously allowed one or more pushes without a completed review (offline/timeout).\n\n"
-              : "GitPreflight previously allowed one or more commits without a completed review (offline/timeout).\n\n") +
-            "Unchecked commits:\n" +
-            `${list}\n\n` +
-            "To proceed, either:\n" +
-            "- Run `gitpreflight skip-next --reason \"...\"` to bypass once, or\n" +
-            (mode === "push" ? "- Use `git push --no-verify` to bypass hooks\n" : "- Use `git commit --no-verify` to bypass hooks\n")
-        }
-      ]
-    });
-    await emit(md);
+    await emitReviewResult("FAIL", [
+      {
+        path: "package.json",
+        severity: "minor",
+        title: "Unchecked backlog on this branch",
+        message:
+          (mode === "push"
+            ? "GitPreflight previously allowed one or more pushes without a completed review (offline/timeout).\n\n"
+            : "GitPreflight previously allowed one or more commits without a completed review (offline/timeout).\n\n") +
+          "Unchecked commits:\n" +
+          `${list}\n\n` +
+          "To proceed, either:\n" +
+          "- Run `gitpreflight skip-next --reason \"...\"` to bypass once, or\n" +
+          (mode === "push" ? "- Use `git push --no-verify` to bypass hooks\n" : "- Use `git commit --no-verify` to bypass hooks\n")
+      }
+    ]);
     return 1;
   }
 
@@ -416,8 +450,7 @@ async function cmdReview(argv: string[]) {
 
     // Local blockers (env/auth/linters) should still block before the network call.
     if (findings.some((f) => f.severity === "minor" || f.severity === "major")) {
-      const md = formatReviewResultMarkdown({ status: "FAIL", findings });
-      await emit(md);
+      await emitReviewResult("FAIL", findings);
       return 1;
     }
 
@@ -435,29 +468,20 @@ async function cmdReview(argv: string[]) {
       }
 
       if (findings.some((f) => f.severity === "minor" || f.severity === "major")) {
-        const md = formatReviewResultMarkdown({ status: "FAIL", findings });
-        await emit(md);
+        await emitReviewResult("FAIL", findings);
         return 1;
       }
 
-      const instructionSections = hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles).hashed
-        .map((h) => {
-          const content = readTextFile(repoRoot, h.path);
-          const clipped = content.length > 20_000 ? `${content.slice(0, 20_000)}\n\n(…truncated)` : content;
-          return `--- ${h.path} ---\n${clipped.trimEnd()}\n--- end ${h.path} ---`;
-        })
-        .join("\n\n");
+      const instructionFiles = hashFilesSha256(repoRoot, discovered.uniqueInstructionFiles).hashed.map((h) => ({
+        path: h.path,
+        content: readTextFile(repoRoot, h.path)
+      }));
 
-      const prompt =
-        `You are GitPreflight in local-agent mode. Review ONLY the ${mode === "push" ? "push" : "staged"} patch.\n` +
-        "Output MUST follow the GitPreflight Markdown contract:\n" +
-        "- Start with '# GitPreflight Review'\n" +
-        "- Include 'Result: PASS|FAIL|UNCHECKED'\n" +
-        "- Include 'Counts: note=<n> minor=<n> major=<n>'\n" +
-        "- Include '## Findings' grouped by file\n" +
-        "- For each finding include Path/Severity/Agreement lines and optional ```suggestion blocks\n\n" +
-        (instructionSections ? `Instruction files:\n\n${instructionSections}\n\n` : "") +
-        `${mode === "push" ? "Push patch" : "Staged patch"}:\n${reviewPatch}`;
+      const prompt = buildLocalAgentReviewPrompt({
+        mode,
+        reviewPatch,
+        instructionFiles
+      });
 
       const command = cmd as string;
       const { runLocalAgentMarkdownReview } = await import("./localAgent");
@@ -469,22 +493,28 @@ async function cmdReview(argv: string[]) {
       });
 
       if (!local.ok) {
-        const md = formatReviewResultMarkdown({
-          status: "FAIL",
-          findings: [
-            {
-              path: "package.json",
-              severity: "minor",
-              title: "Local agent review failed",
-              message: local.errorMessage
-            }
-          ]
-        });
-        await emit(md);
+        await emitReviewResult("FAIL", [
+          {
+            path: "package.json",
+            severity: "minor",
+            title: "Local agent review failed",
+            message: local.errorMessage
+          }
+        ]);
         return 1;
       }
 
-      await emit(local.markdown);
+      const localMarkdownWithUpdateNotice = (() => {
+        const notice = getOutdatedNoticeText(updateStatus);
+        if (!notice) return local.markdown;
+        const findingBlock = `### gitpreflight\n\n#### Update available\nPath: gitpreflight\nSeverity: note\nAgreement: 3/3\n\n${notice}`;
+        if (local.markdown.includes("\n## Findings\n")) {
+          return `${local.markdown.trimEnd()}\n\n${findingBlock}\n`;
+        }
+        return `${local.markdown.trimEnd()}\n\n## Findings\n\n${findingBlock}\n`;
+      })();
+
+      await emit(localMarkdownWithUpdateNotice);
       return local.status === "FAIL" ? 1 : 0;
     }
 
@@ -555,24 +585,22 @@ async function cmdReview(argv: string[]) {
               writePendingState(repoRoot, state);
             }
 
-            const md = formatReviewResultMarkdown({
-              status: "UNCHECKED",
-              findings:
-                remote.findings.length > 0
-                  ? remote.findings
-                  : [
-                      {
-                        path: "package.json",
-                        severity: "note",
-                        title: "Unchecked review",
-                        message:
-                          mode === "push"
-                            ? "GitPreflight could not complete the review. Push is allowed, but GitPreflight will require reviewing these commits before the next push on this branch."
-                            : "GitPreflight could not complete the review. Commit is allowed, but GitPreflight will require reviewing this commit before the next commit on this branch."
-                      }
-                    ]
-            });
-            await emit(md);
+            await emitReviewResult(
+              "UNCHECKED",
+              remote.findings.length > 0
+                ? remote.findings
+                : [
+                    {
+                      path: "package.json",
+                      severity: "note",
+                      title: "Unchecked review",
+                      message:
+                        mode === "push"
+                          ? "GitPreflight could not complete the review. Push is allowed, but GitPreflight will require reviewing these commits before the next push on this branch."
+                          : "GitPreflight could not complete the review. Commit is allowed, but GitPreflight will require reviewing this commit before the next commit on this branch."
+                    }
+                  ]
+            );
             return 0;
           }
 
@@ -593,8 +621,7 @@ async function cmdReview(argv: string[]) {
     }
 
     const status = findings.some((f) => f.severity === "minor" || f.severity === "major") ? "FAIL" : "PASS";
-    const md = formatReviewResultMarkdown({ status, findings });
-    await emit(md);
+    await emitReviewResult(status, findings);
     return status === "FAIL" ? 1 : 0;
   } catch (err) {
     if (isOfflineOrTimeoutError(err)) {
@@ -627,21 +654,17 @@ async function cmdReview(argv: string[]) {
         writePendingState(repoRoot, state);
       }
 
-      const md = formatReviewResultMarkdown({
-        status: "UNCHECKED",
-        findings: [
-          {
-            path: "package.json",
-            severity: "note",
-            title: "Unchecked review",
-            message:
-              mode === "push"
-                ? "GitPreflight could not complete the review (offline/timeout). Push is allowed, but GitPreflight will require reviewing these commits before the next push on this branch."
-                : "GitPreflight could not complete the review (offline/timeout). Commit is allowed, but GitPreflight will require reviewing this commit before the next commit on this branch."
-          }
-        ]
-      });
-      await emit(md);
+      await emitReviewResult("UNCHECKED", [
+        {
+          path: "package.json",
+          severity: "note",
+          title: "Unchecked review",
+          message:
+            mode === "push"
+              ? "GitPreflight could not complete the review (offline/timeout). Push is allowed, but GitPreflight will require reviewing these commits before the next push on this branch."
+              : "GitPreflight could not complete the review (offline/timeout). Commit is allowed, but GitPreflight will require reviewing this commit before the next commit on this branch."
+        }
+      ]);
       return 0;
     }
 
@@ -811,7 +834,7 @@ async function promptInstallFallback(): Promise<{ scope: InstallScope; hook: Ini
   }
 }
 
-async function cmdInstall(argv: string[]) {
+async function cmdSetupScope(argv: string[]) {
   const parsed = parseArgs({
     args: argv,
     options: {
@@ -824,7 +847,7 @@ async function cmdInstall(argv: string[]) {
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: gitpreflight install [--scope global|local|repo] [--hook pre-commit|pre-push|both] [--yes]\n");
+    process.stdout.write("Usage: gitpreflight setup [--scope global|local|repo] [--hook pre-commit|pre-push|both] [--yes]\n");
     return 0;
   }
 
@@ -865,7 +888,7 @@ async function cmdInstall(argv: string[]) {
         hook = choice.hook;
       }
     } else {
-      process.stderr.write("Non-interactive install requires --scope (global|local|repo).\n");
+      process.stderr.write("Non-interactive setup requires --scope (global|local|repo).\n");
       return 2;
     }
   }
@@ -917,11 +940,11 @@ async function cmdUninstall(argv: string[]) {
   try {
     if (scope === "global") {
       uninstallGlobalScope();
-      process.stdout.write("Removed global GitPreflight install (if present).\n");
+      process.stdout.write("Removed global GitPreflight setup (if present).\n");
     } else {
       const repoRoot = getRepoRoot();
       uninstallLocalScope(repoRoot);
-      process.stdout.write("Removed local GitPreflight install for this repo (if present).\n");
+      process.stdout.write("Removed local GitPreflight setup for this repo (if present).\n");
     }
   } catch (err) {
     process.stderr.write(`Uninstall failed: ${(err as Error).message}\n`);
@@ -956,21 +979,21 @@ async function cmdStatus(argv: string[]) {
   const status = getInstallStatus(repoRoot);
   const policy = resolvePolicy(repoRoot);
 
-  process.stdout.write(`Global install: ${status.global.installed ? "enabled" : "disabled"}\n`);
+  process.stdout.write(`Global setup: ${status.global.installed ? "enabled" : "disabled"}\n`);
   if (parsed.values.verbose) {
     process.stdout.write(`  global hooksPath: ${status.global.hooksPath ?? "(unset)"}\n`);
     process.stdout.write(`  managed hooksPath: ${status.global.managedHooksPath}\n`);
   }
 
   if (repoRoot) {
-    process.stdout.write(`Local install (this repo): ${status.local.installed ? "enabled" : "disabled"}\n`);
-    process.stdout.write(`Repo install (committed): ${status.repo.installed ? "enabled" : "disabled"}\n`);
+    process.stdout.write(`Local setup (this repo): ${status.local.installed ? "enabled" : "disabled"}\n`);
+    process.stdout.write(`Repo setup (committed): ${status.repo.installed ? "enabled" : "disabled"}\n`);
     if (parsed.values.verbose) {
       process.stdout.write(`  local hooksPath: ${status.local.hooksPath ?? "(unset)"}\n`);
       process.stdout.write(`  managed local hooksPath: ${status.local.managedHooksPath ?? "(n/a)"}\n`);
     }
   } else {
-    process.stdout.write("Local/repo install: unknown (not inside a git repository)\n");
+    process.stdout.write("Local/repo setup: unknown (not inside a git repository)\n");
   }
 
   process.stdout.write(`Effective scope: ${status.effectiveScope ?? "none"}\n`);
@@ -1028,15 +1051,9 @@ async function cmdAuth(argv: string[]) {
   return 2;
 }
 
-async function cmdSetup(argv: string[]) {
-  const sub = argv[0];
-  if (sub !== "local-agent") {
-    process.stderr.write("Usage: gitpreflight setup local-agent\n");
-    return 2;
-  }
-
+async function cmdSetupLocalAgent(argv: string[]) {
   const parsed = parseArgs({
-    args: argv.slice(1),
+    args: argv,
     options: {
       help: { type: "boolean", short: "h" }
     },
@@ -1110,6 +1127,15 @@ async function cmdSetup(argv: string[]) {
   process.stdout.write(`Saved local-agent config (${provider}: ${command}).\n`);
   process.stdout.write("You can now run `gitpreflight review --staged --local-agent`.\n");
   return 0;
+}
+
+async function cmdSetup(argv: string[]) {
+  const sub = argv[0];
+  if (sub === "local-agent") {
+    return cmdSetupLocalAgent(argv.slice(1));
+  }
+
+  return cmdSetupScope(argv);
 }
 
 async function cmdInternal(argv: string[]) {
@@ -1192,17 +1218,26 @@ export async function runCli(argv: string[] = process.argv.slice(2)) {
     return 0;
   }
 
-  if (cmd === "--version" || cmd === "-v") {
-    printVersion();
-    return 0;
+  if (cmd === "--version" || cmd === "-v") return await cmdVersion({ inCi, inHook });
+  if (cmd === "version") return await cmdVersion({ inCi, inHook });
+
+  if (cmd !== "review") {
+    const updateStatus = await resolveCliUpdateStatus({
+      currentVersion: GITPREFLIGHT_CLI_VERSION,
+      inCi,
+      inHook
+    });
+    const updateNotice = getOutdatedNoticeText(updateStatus);
+    if (updateNotice) {
+      process.stderr.write(`${updateNotice}\n`);
+    }
   }
 
   if (cmd === "review") return await cmdReview(rest);
-  if (cmd === "install") return await cmdInstall(rest);
+  if (cmd === "setup") return await cmdSetup(rest);
   if (cmd === "uninstall") return await cmdUninstall(rest);
   if (cmd === "status") return await cmdStatus(rest);
   if (cmd === "init") return await cmdInit(rest);
-  if (cmd === "setup") return await cmdSetup(rest);
   if (cmd === "auth") return await cmdAuth(rest);
   if (cmd === "skip-next") return await cmdSkipNext(rest);
   if (cmd === "internal") return await cmdInternal(rest);

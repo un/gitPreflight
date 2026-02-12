@@ -48,41 +48,38 @@ bun dev
   - `bun run dev:web`
   - `bun run dev:convex`
 
-## Configure
+## Configure (local-agent mode)
 
-GitPreflight is SaaS-first. You must point the CLI at a GitPreflight API base URL:
-
-```bash
-export GITPREFLIGHT_API_BASE_URL="https://<your-gitpreflight-app-domain>"
-```
-
-Authenticate the CLI:
+In a repo you want to protect:
 
 ```bash
-gitpreflight auth login
-```
-
-Optional local-agent setup:
-
-```bash
+gitpreflight setup
 gitpreflight setup local-agent
 ```
 
-The setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
+The local-agent setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
+
+Check your installed version (and latest known release):
+
+```bash
+gitpreflight version
+# shorthand:
+gitpreflight -v
+```
 
 ## Hook setup
 
 In a repo you want to protect:
 
 ```bash
-gitpreflight install
+gitpreflight setup
 # or non-interactive:
-# gitpreflight install --scope local --hook pre-commit --yes
-# gitpreflight install --scope global --hook pre-commit --yes
-# gitpreflight install --scope repo --hook pre-commit --yes
+# gitpreflight setup --scope local --hook pre-commit --yes
+# gitpreflight setup --scope global --hook pre-commit --yes
+# gitpreflight setup --scope repo --hook pre-commit --yes
 ```
 
-`gitpreflight install` is interactive in a TTY and explains scope options:
+`gitpreflight setup` is interactive in a TTY and explains scope options:
 
 - `global`: enable across all repos on your machine
 - `local`: enable for this repo only, without committed integration files
@@ -98,8 +95,8 @@ GitPreflight integrates via Husky:
 
 Optional push-gate mode:
 
-- `gitpreflight install --scope repo --hook pre-push --yes` creates/appends `.husky/pre-push` to run `gitpreflight review --push`
-- `gitpreflight install --scope repo --hook both --yes` installs both commit + push hooks
+- `gitpreflight setup --scope repo --hook pre-push --yes` creates/appends `.husky/pre-push` to run `gitpreflight review --push`
+- `gitpreflight setup --scope repo --hook both --yes` installs both commit + push hooks
 
 Inspect or remove setup:
 
@@ -132,7 +129,7 @@ Repo owners can commit policy in `package.json`:
 
 Policy precedence is: repo policy > local git config > global git config > default (`optional`).
 
-After repo-scoped install (`gitpreflight install --scope repo ...` or `gitpreflight init`), run your package manager install so Husky activates:
+After repo-scoped setup (`gitpreflight setup --scope repo ...` or `gitpreflight init`), run your package manager install so Husky activates:
 
 ```bash
 npm install
@@ -197,7 +194,7 @@ GitPreflight avoids storing customer repo source code at rest.
 
 ## Source builds / local service
 
-To run against a locally running GitPreflight service, build/run from source and point `GITPREFLIGHT_API_BASE_URL` at localhost.
+To build/run from source:
 
 ```bash
 cd code

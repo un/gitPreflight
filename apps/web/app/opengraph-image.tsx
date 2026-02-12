@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "GitPreflight commit-time review preview";
+export const alt = "GitPreflight PR reviews before commit and push";
 export const size = {
   width: 1200,
   height: 630,
@@ -38,10 +38,10 @@ export default function Image() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "20px", maxWidth: "1000px" }}>
           <div style={{ fontSize: 64, lineHeight: 1.05, letterSpacing: "-0.02em", fontWeight: 700 }}>
-            Stop bad commits before they become PR noise.
+            PR-quality reviews before every commit and push.
           </div>
           <div style={{ fontSize: 30, lineHeight: 1.3, color: "#cbd5e1" }}>
-            Staged-only pre-commit reviews for AI coding agents.
+            Feedback goes straight back into your coding agent.
           </div>
         </div>
 

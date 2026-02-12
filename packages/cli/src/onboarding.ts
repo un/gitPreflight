@@ -33,7 +33,7 @@ export function shouldShowOnboardingNotice(opts: {
   if (hasShownOnboardingNotice()) return false;
   if (opts.status.effectiveScope) return false;
 
-  const quietCommands = new Set([undefined, "--help", "-h", "--version", "-v", "install", "status", "setup", "auth", "internal"]);
+  const quietCommands = new Set([undefined, "--help", "-h", "--version", "-v", "setup", "status", "auth", "internal"]);
   if (quietCommands.has(opts.cmd)) return false;
 
   return true;
@@ -42,7 +42,7 @@ export function shouldShowOnboardingNotice(opts: {
 export function onboardingNoticeText() {
   return [
     "GitPreflight is installed but not configured yet.",
-    "Run `gitpreflight install` to choose setup mode (global, local, or repo).",
-    "Tip: `gitpreflight install --scope local --yes` for non-interactive setup."
+    "Run `gitpreflight setup` to choose setup mode (global, local, or repo).",
+    "Tip: `gitpreflight setup --scope local --yes` for non-interactive setup."
   ].join("\n");
 }
