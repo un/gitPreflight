@@ -9,7 +9,7 @@ async function main() {
 
   if (process.env.GITPREFLIGHT_SKIP_DOWNLOAD === "1" || process.env.GITPREFLIGHT_SKIP_DOWNLOAD === "true") {
     if (interactive) {
-      process.stderr.write("GitPreflight: run `gitpreflight install` to choose setup mode (global, local, or repo).\n");
+      process.stderr.write("GitPreflight: run `gitpreflight setup` to choose setup mode (global, local, or repo).\n");
     }
     return;
   }
@@ -20,7 +20,7 @@ async function main() {
       const version = require("../package.json").version;
       if (version === "0.0.0") {
         if (interactive) {
-          process.stderr.write("GitPreflight: run `gitpreflight install` to choose setup mode (global, local, or repo).\n");
+          process.stderr.write("GitPreflight: run `gitpreflight setup` to choose setup mode (global, local, or repo).\n");
         }
         return;
       }
@@ -32,7 +32,7 @@ async function main() {
   await ensureGitPreflightBinary({ reason: "postinstall" });
 
   if (interactive) {
-    process.stderr.write("GitPreflight installed. Next: run `gitpreflight install` to configure hooks.\n");
+    process.stderr.write("GitPreflight installed. Next: run `gitpreflight setup` to configure hooks.\n");
   }
 }
 

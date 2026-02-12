@@ -100,7 +100,7 @@ export async function runInstallWizardTui(): Promise<InstallWizardChoice> {
     {
       key: "2",
       label: "Local (this repo only)",
-      description: "Repo-only install in .git with no committed integration files."
+      description: "Repo-only setup in .git with no committed integration files."
     },
     {
       key: "3",

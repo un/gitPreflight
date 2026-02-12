@@ -59,7 +59,7 @@ export default function Home() {
         <div className="mt-6 rounded-lg border bg-card">
           <div className="border-b px-3 py-2 text-xs text-muted-foreground">Quick start</div>
           <pre className="overflow-x-auto px-3 py-2 text-xs leading-5">
-            <code>{`npm i -g gitpreflight\ngitpreflight install\ngitpreflight setup local-agent\n\n# then work as usual\ngit add -A\ngit commit -m "feat: improve retry loop"`}</code>
+            <code>{`npm i -g gitpreflight\ngitpreflight setup\ngitpreflight setup local-agent\ngitpreflight version\n\n# then work as usual\ngit add -A\ngit commit -m "feat: improve retry loop"`}</code>
           </pre>
         </div>
       </section>
@@ -124,8 +124,9 @@ export default function Home() {
         <h2 className="text-base font-semibold">Install for local development</h2>
         <p className="mt-2 text-sm text-muted-foreground">Set up once, then keep your agent loop hands-free on every commit.</p>
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm">
-          <li>Install and wire hooks with <code>gitpreflight install</code>.</li>
+          <li>Install and wire hooks with <code>gitpreflight setup</code>.</li>
           <li>Run <code>gitpreflight setup local-agent</code> and select your CLI agent.</li>
+          <li>Use <code>gitpreflight version</code> (or <code>-v</code>) to check current/latest versions.</li>
           <li>GitPreflight probes the command and stores validated config locally.</li>
           <li>Commit as usual; feedback is routed automatically during the hook.</li>
         </ol>
