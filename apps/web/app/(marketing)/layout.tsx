@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { isAuthenticated } from "@/lib/auth-server";
-import { cn } from "@/lib/utils";
 
 const GITHUB_REPO_URL = "https://github.com/un/gitpreflight";
 const SITE_URL = "https://gitpreflight.ai";
-const MARKETING_TITLE = "GitPreflight | PR reviews before every commit and push";
+const MARKETING_TITLE = "GitPreflight | Autonomous PR feedback for local CLI workflows";
 const MARKETING_DESCRIPTION =
-  "PR-style reviews run automatically on git commit and git push, then send actionable feedback directly into your coding agent before a PR is opened.";
+  "Run PR-style reviews during git commit, route findings directly into your local coding agent, and open clean pull requests after autonomous fix loops pass.";
 const OG_IMAGE_ALT = "GitPreflight commit and push review loop preview image";
 const NOISE_DATA_URL =
   "data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20width%3D'128'%20height%3D'128'%3E%3Cfilter%20id%3D'n'%3E%3CfeTurbulence%20type%3D'fractalNoise'%20baseFrequency%3D'.8'%20numOctaves%3D'3'%20stitchTiles%3D'stitch'/%3E%3C/filter%3E%3Crect%20width%3D'128'%20height%3D'128'%20filter%3D'url(%23n)'%20opacity%3D'.4'/%3E%3C/svg%3E";
@@ -39,16 +36,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function MarketingLayout({
+export default function MarketingLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const ok = await isAuthenticated();
-
-  const ctaHref = ok ? "/dashboard" : "/sign-in";
-  const ctaLabel = ok ? "Dashboard" : "Sign in";
-
   return (
     <div className="relative isolate min-h-screen bg-background text-foreground font-mono text-sm leading-6">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -73,34 +65,28 @@ export default async function MarketingLayout({
 
           <nav aria-label="Sections" className="hidden items-center gap-1 text-sm sm:flex">
             <Link
-              href="/#problem"
+              href="/#loop"
               className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              Problem
+              Loop
             </Link>
             <Link
-              href="/#before-after"
+              href="/#autonomous"
               className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              Before/After
+              Autonomous
             </Link>
             <Link
-              href="/#how-it-works"
+              href="/#agent-feedback"
               className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              How it works
+              Feedback
             </Link>
             <Link
-              href="/#local-agent-setup"
+              href="/#install"
               className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              Local-agent
-            </Link>
-            <Link
-              href="/#pricing"
-              className="rounded-md px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-            >
-              Pricing
+              Install
             </Link>
             <Link
               href="/#faq"
@@ -112,13 +98,10 @@ export default async function MarketingLayout({
 
           <div className="flex items-center gap-2">
             <Link
-              href={ctaHref}
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "rounded-md border-dashed bg-background/60 shadow-none",
-              )}
+              href="/#install"
+              className="rounded-md border border-dashed bg-background/60 px-3 py-1.5 text-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              {ctaLabel}
+              Install CLI
             </Link>
           </div>
         </div>
@@ -126,34 +109,28 @@ export default async function MarketingLayout({
         <div className="mx-auto w-full max-w-[78ch] px-6 pb-3 sm:hidden">
           <nav aria-label="Sections" className="flex items-center gap-1 overflow-x-auto">
             <Link
-              href="/#problem"
+              href="/#loop"
               className="whitespace-nowrap rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              Problem
+              Loop
             </Link>
             <Link
-              href="/#before-after"
+              href="/#autonomous"
               className="whitespace-nowrap rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              Before/After
+              Autonomous
             </Link>
             <Link
-              href="/#how-it-works"
+              href="/#agent-feedback"
               className="whitespace-nowrap rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              How it works
+              Feedback
             </Link>
             <Link
-              href="/#local-agent-setup"
+              href="/#install"
               className="whitespace-nowrap rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              Local-agent
-            </Link>
-            <Link
-              href="/#pricing"
-              className="whitespace-nowrap rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-            >
-              Pricing
+              Install
             </Link>
             <Link
               href="/#faq"
@@ -183,10 +160,10 @@ export default async function MarketingLayout({
                 GitHub
               </a>
               <Link
-                href="/#pricing"
+                href="/#install"
                 className="rounded-md px-1.5 py-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
               >
-                Pricing
+                Install
               </Link>
               <Link
                 href="/#faq"
