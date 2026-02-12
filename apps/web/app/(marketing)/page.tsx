@@ -30,39 +30,46 @@ const MARKDOWN_CONTRACT_EXCERPT = [
 export default async function Home() {
   const ok = await isAuthenticated();
   const primaryHref = ok ? "/dashboard" : "/sign-in";
-  const primaryLabel = ok ? "Dashboard" : "Sign in";
 
   return (
     <div className={cn("flex flex-col gap-10", styles.reveal)}>
       <section aria-label="Hero" className="pt-2">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Stop bad commits before they become PR noise.</h1>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Catch PR issues on git commit before your PR exists.</h1>
         <p className="mt-4 text-sm text-muted-foreground">
-          GitPreflight is the commit-time review gate for agentic teams. 1000x developers do not chase the white rabbit.
+          GitPreflight runs PR-style review checks automatically on <code>git commit</code> and optional <code>git push</code>.
         </p>
         <p className="mt-3 text-sm text-foreground">
-          Review runs on <code>git commit</code> (or optional pre-push), checks only <code>git diff --cached</code>, and returns stable
-          Markdown with <code>suggestion</code> blocks your agent can apply before you push.
+          It reviews <code>git diff --cached</code> and sends actionable findings straight back into your coding agent so fixes happen
+          before code leaves your branch.
         </p>
         <p className="mt-3 text-sm text-foreground">
           SaaS mode works out of the box. For local-agent mode, run <code>gitpreflight setup local-agent</code> once and GitPreflight
           stores command config in <code>~/.config/gitpreflight/config.json</code>.
         </p>
-        <p className="mt-3 text-sm text-foreground">Tells your agent what to fix before the PR is made.</p>
-        <p className="mt-2 text-sm text-foreground">No more copying LLM feedback back and forth between the PR and your agent.</p>
+        <p className="mt-3 text-sm text-foreground">No more copying review comments from PR threads back into your agent.</p>
 
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <Link
             href={primaryHref}
             className={cn(buttonVariants({ variant: "default" }), "rounded-md shadow-none")}
           >
-            {primaryLabel}
+            {ok ? "Open dashboard" : "Install and review before commit"}
           </Link>
           <Link
-            href="/#pricing"
+            href="/#how-it-works"
             className={cn(buttonVariants({ variant: "outline" }), "rounded-md border-dashed bg-background/60 shadow-none")}
           >
-            View pricing
+            See the agent feedback loop
           </Link>
+        </div>
+
+        <div className="mt-6 rounded-lg border bg-card p-4">
+          <h2 className="text-sm font-semibold">How it works</h2>
+          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm">
+            <li>You run <code>git commit</code> (or <code>git push</code>).</li>
+            <li>GitPreflight runs PR-style checks before the command finishes.</li>
+            <li>Findings are sent to your active agent session for immediate fixes.</li>
+          </ol>
         </div>
 
         <div className="mt-6 rounded-lg border bg-card">
@@ -80,7 +87,7 @@ export default async function Home() {
       <section id="problem" className="scroll-mt-24">
         <h2 className="text-base font-semibold">Problem</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          You push code, bots pile onto the PR, and now your agent is stuck reading thread noise instead of fixing code.
+          Most teams get review feedback too late: after push, inside PR threads, and outside the coding loop.
         </p>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm">
           <li>PR review happens after push, when the diff is already public and the context has shifted.</li>
@@ -100,17 +107,17 @@ export default async function Home() {
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm">
               <li>Push first, review later.</li>
               <li>Feedback lands in PR comments after context is gone.</li>
-              <li>You copy review text into your agent and wait for another patch.</li>
+              <li>You manually copy review text into your agent and wait for another patch.</li>
               <li>The PR becomes a debugging transcript.</li>
             </ul>
           </div>
           <div className="rounded-lg border bg-card p-4">
             <h3 className="text-sm font-semibold">After: closed loop before push</h3>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm">
-              <li>Tells your agent what to fix before the PR is made.</li>
-              <li>No more copying LLM feedback back and forth between the PR and your agent.</li>
+              <li>Review starts on <code>git commit</code> and optional <code>git push</code>.</li>
+              <li>PR-style findings are delivered directly into your agent workflow.</li>
               <li>Commit-time review returns stable Markdown with actionable <code>suggestion</code> blocks.</li>
-              <li>Your local loop runs PASS/FAIL/UNCHECKED, and you push only after PASS.</li>
+              <li>Your local loop runs PASS/FAIL/UNCHECKED, then you push after PASS.</li>
             </ul>
           </div>
         </div>
@@ -119,12 +126,12 @@ export default async function Home() {
       <section id="solution" aria-label="Solution" className="pt-2 scroll-mt-24">
         <h2 className="text-base font-semibold">Solution</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          PR bots review after push. GitPreflight blocks or clears the commit before the PR exists.
+          GitPreflight runs the same style of review before commit/push completes, then routes findings straight back to your agent.
         </p>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm">
-          <li>Run review in git hooks at commit time, with optional pre-push mode.</li>
-          <li>Review the staged diff only (`git diff --cached`) so the scope stays small.</li>
-          <li>Output a stable Markdown report with actionable `suggestion` blocks.</li>
+          <li>Runs in git hooks on <code>git commit</code> with optional pre-push checks.</li>
+          <li>Reviews only the staged diff (<code>git diff --cached</code>) so scope stays tight.</li>
+          <li>Returns stable Markdown with actionable <code>suggestion</code> blocks.</li>
           <li>Use explicit loop semantics: FAIL blocks, UNCHECKED allows with local backlog, PASS is ready to push.</li>
           <li>Close the loop locally: your agent iterates to PASS, then humans review intent instead of cleanup.</li>
         </ul>
@@ -132,13 +139,15 @@ export default async function Home() {
 
       <section id="how-it-works" className="scroll-mt-24">
         <h2 className="text-base font-semibold">How it works</h2>
-        <p className="mt-2 text-sm text-muted-foreground">A commit-time protocol for agents that ends at PASS.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          A pre-commit and pre-push review protocol that keeps the full fix loop inside your agent.
+        </p>
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm">
-          <li>Stage changes.</li>
-          <li>Run `git commit`.</li>
-          <li>GitPreflight reviews the staged diff and prints stable Markdown with Result: PASS, FAIL, or UNCHECKED.</li>
-          <li>If FAIL, your agent applies `suggestion` blocks and retries. If UNCHECKED, commit is allowed but backlog must clear.</li>
-          <li>Repeat until PASS, then push a clean PR.</li>
+          <li>Stage changes and run <code>git commit</code> (with optional checks on <code>git push</code>).</li>
+          <li>GitPreflight reviews <code>git diff --cached</code> and prints stable Markdown with Result: PASS, FAIL, or UNCHECKED.</li>
+          <li>If FAIL, findings and <code>suggestion</code> blocks are routed into your active agent session.</li>
+          <li>Your agent patches code, you restage, and rerun commit/push checks until PASS.</li>
+          <li>Only then do you open or update a PR, with cleaner intent and less thread noise.</li>
         </ol>
       </section>
 

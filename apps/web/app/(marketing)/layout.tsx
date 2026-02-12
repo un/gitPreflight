@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 
 const GITHUB_REPO_URL = "https://github.com/un/gitpreflight";
 const SITE_URL = "https://gitpreflight.ai";
-const MARKETING_TITLE = "GitPreflight | Stop bad commits before PR noise";
+const MARKETING_TITLE = "GitPreflight | PR reviews before every commit and push";
 const MARKETING_DESCRIPTION =
-  "Staged-only pre-commit reviews for AI coding agents. Catch issues at commit time, fix before push, and keep PRs clean.";
-const OG_IMAGE_ALT = "GitPreflight commit-time review preview image";
+  "PR-style reviews run automatically on git commit and git push, then send actionable feedback directly into your coding agent before a PR is opened.";
+const OG_IMAGE_ALT = "GitPreflight commit and push review loop preview image";
 const NOISE_DATA_URL =
   "data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20width%3D'128'%20height%3D'128'%3E%3Cfilter%20id%3D'n'%3E%3CfeTurbulence%20type%3D'fractalNoise'%20baseFrequency%3D'.8'%20numOctaves%3D'3'%20stitchTiles%3D'stitch'/%3E%3C/filter%3E%3Crect%20width%3D'128'%20height%3D'128'%20filter%3D'url(%23n)'%20opacity%3D'.4'/%3E%3C/svg%3E";
 

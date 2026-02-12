@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "GitPreflight",
-  description: "Staged-only pre-commit reviews for AI coding agents. Fix issues at commit time. Clean PRs by default.",
+  description: "PR-style reviews on git commit and git push, with feedback sent directly to your coding agent before a PR is opened.",
 };
 
 export default async function RootLayout({
