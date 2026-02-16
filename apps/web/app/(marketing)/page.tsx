@@ -122,13 +122,16 @@ export default function Home() {
 
       <section id="install" className="scroll-mt-24 pt-2" aria-label="Install and setup">
         <h2 className="text-base font-semibold">Install for local development</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Set up once, then keep your agent loop hands-free on every commit.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Set up once with OpenTUI, then keep your agent loop hands-free on every commit.
+        </p>
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm">
           <li>Install and wire hooks with <code>gitpreflight setup</code>.</li>
-          <li>Select your CLI agent in setup; GitPreflight probes and saves it automatically.</li>
+          <li>OpenTUI walks through scope, hook mode, and local-agent provider selection.</li>
+          <li>Use <code>gitpreflight setup local-agent</code> later if you want to switch providers only.</li>
+          <li>Re-running setup updates managed hook lines instead of duplicating entries.</li>
           <li>Use <code>gitpreflight version</code> (or <code>-v</code>) to check current/latest versions.</li>
-          <li>GitPreflight probes the command and stores validated config locally.</li>
-          <li>Commit as usual; feedback is routed automatically during the hook.</li>
+          <li>Commit as usual; feedback is routed automatically during hooks.</li>
         </ol>
         <div className="mt-4 rounded-lg border bg-card">
           <div className="border-b px-3 py-2 text-xs text-muted-foreground">Saved local config</div>
@@ -158,9 +161,24 @@ export default function Home() {
           </div>
 
           <div>
+            <h3 className="font-semibold">What if I run setup more than once?</h3>
+            <p className="mt-2 text-muted-foreground">
+              Setup is idempotent for managed hooks: existing GitPreflight lines are updated/cleaned instead of appended repeatedly.
+            </p>
+          </div>
+
+          <div>
             <h3 className="font-semibold">What makes PRs cleaner?</h3>
             <p className="mt-2 text-muted-foreground">
               The noisy fix rounds happen before PR creation. Reviewers see the intended change set instead of agent back-and-forth.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold">I use OpenCode. Is hook execution isolated from host sessions?</h3>
+            <p className="mt-2 text-muted-foreground">
+              Yes. GitPreflight sanitizes inherited OpenCode server session env vars before spawning <code>opencode</code> during hook
+              reviews.
             </p>
           </div>
 

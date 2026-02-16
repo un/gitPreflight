@@ -58,6 +58,17 @@ gitpreflight setup
 
 The setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
 
+Interactive setup uses the OpenTUI flow (arrow keys + Enter) for both:
+
+- `gitpreflight setup` (scope + hook mode)
+- `gitpreflight setup local-agent` (provider only)
+
+To re-run just local-agent selection later:
+
+```bash
+gitpreflight setup local-agent
+```
+
 Check your installed version (and latest known release):
 
 ```bash
@@ -83,6 +94,8 @@ gitpreflight setup
 - `global`: enable across all repos on your machine
 - `local`: enable for this repo only, without committed integration files
 - `repo`: committed repo-owned setup for all contributors
+
+Re-running setup is safe: GitPreflight updates/dedupes managed hook lines instead of appending duplicates.
 
 Compatibility: `gitpreflight init` still works for repo-scoped Husky setup.
 
@@ -224,6 +237,8 @@ Provider default commands:
 - `Codex` -> `codex`
 - `Claude` -> `claude`
 - `OpenCode` -> `opencode run`
+
+OpenCode compatibility: when the configured command starts with `opencode`, GitPreflight strips inherited `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD` before spawning the process to avoid host-session bleed into hook runs.
 
 Probe success criteria before saving config:
 
