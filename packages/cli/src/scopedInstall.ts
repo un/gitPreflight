@@ -99,11 +99,11 @@ function toAbsoluteHooksPath(repoRoot: string, hooksPath: string): string {
 }
 
 function hookLinePreCommit(): string {
-  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged";
+  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged --local-agent";
 }
 
 function hookLinePrePush(): string {
-  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --push \"$@\"";
+  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --push --local-agent \"$@\"";
 }
 
 function hookLinePostCommit(): string {
