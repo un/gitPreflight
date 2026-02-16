@@ -1,6 +1,5 @@
 import { formatReviewResultMarkdown, GITPREFLIGHT_CORE_VERSION } from "@gitpreflight/core";
 import { readFileSync } from "node:fs";
-import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import {
   getBranchName,
@@ -56,6 +55,7 @@ import { getDefaultLocalAgentCommand, getLocalAgentConfig, saveLocalAgentConfig,
 import { probeLocalAgentCommand } from "./localAgent";
 import { buildLocalAgentReviewPrompt } from "./localAgentPrompt";
 import { getOutdatedNoticeText, resolveCliUpdateStatus } from "./updateCheck";
+import { interactiveSelect } from "./interactiveSelect";
 
 function printHelp() {
   process.stdout.write(
@@ -693,39 +693,40 @@ async function cmdInit(argv: string[]) {
     const stdoutIsTty = Boolean(process.stdout.isTTY);
     if (!stdinIsTty || !stdoutIsTty) return "pre-commit";
 
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    const question = (q: string) => new Promise<string>((resolve) => rl.question(q, resolve));
-
-    try {
-      process.stdout.write(
-        [
-          "How do you want GitPreflight to run?",
-          "  1) On commit (pre-commit) [recommended]",
-          "  2) On push (pre-push)",
-          "  3) Both",
-          ""
-        ].join("\n")
-      );
-
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const answer = (await question("Select 1-3 [1]: ")).trim();
-        if (answer === "" || answer === "1") return "pre-commit";
-        if (answer === "2") return "pre-push";
-        if (answer === "3") return "both";
-        process.stdout.write("Invalid selection.\n");
-      }
-
-      return "pre-commit";
-    } finally {
-      rl.close();
-    }
+    return await interactiveSelect<InitHookMode>({
+      title: "GitPreflight init",
+      prompt: "How do you want GitPreflight to run?",
+      options: [
+        {
+          value: "pre-commit",
+          label: "On commit (pre-commit) [recommended]",
+          description: "Review staged changes before each commit."
+        },
+        {
+          value: "pre-push",
+          label: "On push (pre-push)",
+          description: "Review commit range before each push."
+        },
+        {
+          value: "both",
+          label: "Both",
+          description: "Install both pre-commit and pre-push checks."
+        }
+      ],
+      defaultValue: "pre-commit"
+    });
   }
 
   const hookFlag = parsed.values.hook as string | undefined;
   let selectedHookMode: InitHookMode;
 
   if (!hookFlag) {
-    selectedHookMode = await promptInitHookMode();
+    try {
+      selectedHookMode = await promptInitHookMode();
+    } catch {
+      process.stderr.write("Init canceled.\n");
+      return 1;
+    }
   } else if (hookFlag === "pre-commit" || hookFlag === "pre-push" || hookFlag === "both") {
     selectedHookMode = hookFlag;
   } else {
@@ -766,72 +767,53 @@ function parseScopeFlag(scopeFlag: string | undefined): InstallScope | null {
 }
 
 async function promptInstallFallback(): Promise<{ scope: InstallScope; hook: InitHookMode }> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const question = (q: string) => new Promise<string>((resolve) => rl.question(q, resolve));
+  const scope = await interactiveSelect<InstallScope>({
+    title: "GitPreflight setup",
+    prompt: "Choose scope:",
+    options: [
+      {
+        value: "global",
+        label: "global",
+        description: "Enable GitPreflight for all repos on this machine."
+      },
+      {
+        value: "local",
+        label: "local",
+        description: "Enable only for this repo using local .git config."
+      },
+      {
+        value: "repo",
+        label: "repo",
+        description: "Commit Husky integration files for team setup."
+      }
+    ],
+    defaultValue: "local"
+  });
 
-  try {
-    process.stdout.write(
-      [
-        "GitPreflight setup",
-        "Choose scope:",
-        "  1) global  - all repos on this machine",
-        "  2) local   - this repo only (no committed files)",
-        "  3) repo    - committed team setup",
-        ""
-      ].join("\n")
-    );
+  const hook = await interactiveSelect<InitHookMode>({
+    title: "GitPreflight setup",
+    prompt: "Choose hook mode:",
+    options: [
+      {
+        value: "pre-commit",
+        label: "pre-commit",
+        description: "Review staged changes at commit time."
+      },
+      {
+        value: "pre-push",
+        label: "pre-push",
+        description: "Review pushed commit range at push time."
+      },
+      {
+        value: "both",
+        label: "both",
+        description: "Install both pre-commit and pre-push checks."
+      }
+    ],
+    defaultValue: "pre-commit"
+  });
 
-    let scope: InstallScope = "local";
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const answer = (await question("Select scope 1-3 [2]: ")).trim();
-      if (answer === "" || answer === "2") {
-        scope = "local";
-        break;
-      }
-      if (answer === "1") {
-        scope = "global";
-        break;
-      }
-      if (answer === "3") {
-        scope = "repo";
-        break;
-      }
-      process.stdout.write("Invalid selection.\n");
-    }
-
-    process.stdout.write("\n");
-    process.stdout.write(
-      [
-        "Choose hook mode:",
-        "  1) pre-commit",
-        "  2) pre-push",
-        "  3) both",
-        ""
-      ].join("\n")
-    );
-
-    let hook: InitHookMode = "pre-commit";
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const answer = (await question("Select hook mode 1-3 [1]: ")).trim();
-      if (answer === "" || answer === "1") {
-        hook = "pre-commit";
-        break;
-      }
-      if (answer === "2") {
-        hook = "pre-push";
-        break;
-      }
-      if (answer === "3") {
-        hook = "both";
-        break;
-      }
-      process.stdout.write("Invalid selection.\n");
-    }
-
-    return { scope, hook };
-  } finally {
-    rl.close();
-  }
+  return { scope, hook };
 }
 
 async function cmdSetupScope(argv: string[]) {
@@ -883,9 +865,14 @@ async function cmdSetupScope(argv: string[]) {
           return 1;
         }
       } else {
-        const choice = await promptInstallFallback();
-        scope = choice.scope;
-        hook = choice.hook;
+        try {
+          const choice = await promptInstallFallback();
+          scope = choice.scope;
+          hook = choice.hook;
+        } catch {
+          process.stderr.write("Install canceled.\n");
+          return 1;
+        }
       }
     } else {
       process.stderr.write("Non-interactive setup requires --scope (global|local|repo).\n");
@@ -1070,39 +1057,33 @@ async function cmdSetupLocalAgent(argv: string[]) {
     return 2;
   }
 
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const question = (q: string) => new Promise<string>((resolve) => rl.question(q, resolve));
-
-  let provider: LocalAgentProvider = "codex";
+  let provider: LocalAgentProvider;
   try {
-    process.stdout.write(
-      [
-        "Which local agent are you using?",
-        "  1) Codex",
-        "  2) Claude",
-        "  3) OpenCode",
-        ""
-      ].join("\n")
-    );
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const answer = (await question("Select 1-3 [1]: ")).trim();
-      if (answer === "" || answer === "1") {
-        provider = "codex";
-        break;
-      }
-      if (answer === "2") {
-        provider = "claude";
-        break;
-      }
-      if (answer === "3") {
-        provider = "opencode";
-        break;
-      }
-      process.stdout.write("Invalid selection.\n");
-    }
-  } finally {
-    rl.close();
+    provider = await interactiveSelect<LocalAgentProvider>({
+      title: "GitPreflight local-agent setup",
+      prompt: "Which local agent are you using?",
+      options: [
+        {
+          value: "codex",
+          label: "Codex",
+          description: "Use the `codex` command."
+        },
+        {
+          value: "claude",
+          label: "Claude",
+          description: "Use the `claude` command."
+        },
+        {
+          value: "opencode",
+          label: "OpenCode",
+          description: "Use the `opencode run` command."
+        }
+      ],
+      defaultValue: "codex"
+    });
+  } catch {
+    process.stderr.write("Setup canceled.\n");
+    return 1;
   }
 
   const command = getDefaultLocalAgentCommand(provider);

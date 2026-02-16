@@ -49,20 +49,35 @@ async function waitForChoice(title: string, subtitle: string, options: ScreenCho
   root.add(
     new TextRenderable(renderer, {
       id: "hint",
-      content: "Press number key to choose, or q/esc to cancel.",
+      content: "Use Up/Down arrows + Enter. Number keys also work. Press q/esc to cancel.",
       fg: "#94a3b8"
     })
   );
 
+  let selectedIndex = 0;
+  const optionNodes: Array<InstanceType<typeof TextRenderable>> = [];
+
   for (const option of options) {
-    root.add(
-      new TextRenderable(renderer, {
-        id: `opt-${option.key}`,
-        content: `${option.key}) ${option.label}\n   ${option.description}`,
-        fg: "#e2e8f0"
-      })
-    );
+    const node = new TextRenderable(renderer, {
+      id: `opt-${option.key}`,
+      content: `${option.key}) ${option.label}\n   ${option.description}`,
+      fg: "#e2e8f0"
+    });
+    optionNodes.push(node);
+    root.add(node);
   }
+
+  const renderOptions = () => {
+    optionNodes.forEach((node, index) => {
+      const option = options[index]!;
+      const isSelected = index === selectedIndex;
+      const marker = isSelected ? ">" : " ";
+      node.content = `${marker} ${option.key}) ${option.label}\n   ${option.description}`;
+      node.fg = isSelected ? "#f8fafc" : "#e2e8f0";
+    });
+  };
+
+  renderOptions();
 
   return await new Promise<string>((resolve, reject) => {
     let settled = false;
@@ -82,8 +97,27 @@ async function waitForChoice(title: string, subtitle: string, options: ScreenCho
         return;
       }
 
+      if (name === "up") {
+        selectedIndex = (selectedIndex - 1 + options.length) % options.length;
+        renderOptions();
+        return;
+      }
+
+      if (name === "down") {
+        selectedIndex = (selectedIndex + 1) % options.length;
+        renderOptions();
+        return;
+      }
+
+      if (name === "return" || name === "enter") {
+        finish(options[selectedIndex]!.key);
+        return;
+      }
+
       const matched = options.find((o) => o.key === name);
       if (matched) {
+        selectedIndex = options.findIndex((o) => o.key === matched.key);
+        renderOptions();
         finish(matched.key);
       }
     });
