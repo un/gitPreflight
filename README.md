@@ -152,6 +152,37 @@ gitpreflight review --staged --plain
 GITPREFLIGHT_UI=plain gitpreflight review --staged
 ```
 
+## Anonymous analytics (installs vs triggers)
+
+GitPreflight collects minimal anonymous usage analytics to measure install/activation funnel quality.
+
+- Events:
+  - `install` (npm postinstall, curl installer, and CLI heartbeat upsert)
+  - `trigger` (each `gitpreflight review --staged|--push` invocation, including local-agent mode)
+- Stored fields: random `installId`, channel/mode, CLI version, platform, architecture, timestamp.
+- Not collected: user identity, email, auth token, repository URL, file contents, patch/diff content.
+
+Opt out:
+
+```bash
+# disable anonymous analytics
+export GITPREFLIGHT_ANON_TELEMETRY=0
+# or
+export GITPREFLIGHT_DISABLE_ANON_TELEMETRY=1
+```
+
+Override analytics endpoint (self-hosting/dev):
+
+```bash
+export GITPREFLIGHT_TELEMETRY_BASE_URL="https://your-gitpreflight-host"
+```
+
+Read aggregate funnel stats (for dashboards/landing pages):
+
+```bash
+curl -fsSL "https://gitpreflight.ai/api/v1/analytics/summary?days=30"
+```
+
 ## Unchecked policy (offline/timeout)
 
 If GitPreflight cannot complete a review (network/timeout/server issues):
@@ -190,6 +221,7 @@ GitPreflight avoids storing customer repo source code at rest.
 - The server stores:
   - instruction file contents (by hash) when configured (e.g. `AGENTS.md`)
   - review outputs and aggregated usage/statistics
+  - anonymous install/trigger analytics (random install ID + runtime metadata only)
 - The server does not store arbitrary repo files.
 
 ## Source builds / local service
