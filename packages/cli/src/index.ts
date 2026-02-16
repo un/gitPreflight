@@ -69,8 +69,7 @@ function printHelp() {
       "  review --staged        Review staged changes",
       "  review --push          Review commits being pushed",
       "  version                Show current/latest CLI version",
-      "  setup [options]        Set up GitPreflight (global/local/repo)",
-      "  setup local-agent      Configure local-agent command",
+      "  setup [options]        Set up GitPreflight + local-agent",
       "  uninstall --scope ...  Remove GitPreflight for a scope",
       "  status                 Show setup status + effective scope",
       "  init [--hook ...]      Install git hooks + config (v0: stub)",
@@ -136,7 +135,7 @@ async function cmdReview(argv: string[]) {
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: gitpreflight review (--staged|--push) [--local-agent] [--tui|--plain]\n");
+    process.stdout.write("Usage: gitpreflight review (--staged|--push) [--tui|--plain]\n");
     return 0;
   }
 
@@ -301,7 +300,7 @@ async function cmdReview(argv: string[]) {
 
   try {
     const repoConfig = loadGitPreflightRepoConfig(repoRoot);
-    const useLocalAgent = Boolean((parsed.values as any)["local-agent"]);
+    const useLocalAgent = true;
 
     const reviewInput =
       mode === "staged"
@@ -463,7 +462,7 @@ async function cmdReview(argv: string[]) {
           severity: "minor",
           title: "Missing local agent command",
           message:
-            "No local-agent command is configured. Run `gitpreflight setup local-agent` to configure your local agent command."
+            "No local-agent command is configured. Run `gitpreflight setup` to configure your local agent command."
         });
       }
 
@@ -766,7 +765,62 @@ function parseScopeFlag(scopeFlag: string | undefined): InstallScope | null {
   return null;
 }
 
-async function promptInstallFallback(): Promise<{ scope: InstallScope; hook: InitHookMode }> {
+function parseLocalAgentProviderFlag(providerFlag: string | undefined): LocalAgentProvider | null {
+  if (!providerFlag) return null;
+  if (providerFlag === "codex" || providerFlag === "claude" || providerFlag === "opencode") return providerFlag;
+  return null;
+}
+
+async function promptLocalAgentProvider(title: string): Promise<LocalAgentProvider> {
+  return await interactiveSelect<LocalAgentProvider>({
+    title,
+    prompt: "Which local agent are you using?",
+    options: [
+      {
+        value: "codex",
+        label: "Codex",
+        description: "Use the `codex` command."
+      },
+      {
+        value: "claude",
+        label: "Claude",
+        description: "Use the `claude` command."
+      },
+      {
+        value: "opencode",
+        label: "OpenCode",
+        description: "Use the `opencode run` command."
+      }
+    ],
+    defaultValue: "codex"
+  });
+}
+
+function probeAndSaveLocalAgent(provider: LocalAgentProvider, rerunCommand: string): boolean {
+  const command = getDefaultLocalAgentCommand(provider);
+  process.stdout.write(`\nProbing local agent command: ${command}\n`);
+  const probe = probeLocalAgentCommand({
+    command,
+    cwd: process.cwd(),
+    timeoutMs: 20_000
+  });
+
+  if (!probe.ok) {
+    process.stderr.write("Local-agent probe failed. Configuration was not saved.\n");
+    process.stderr.write(`Command: ${command}\n`);
+    if (probe.exitCode !== null) process.stderr.write(`Exit code: ${probe.exitCode}\n`);
+    process.stderr.write(`Reason: ${probe.message}\n`);
+    if (probe.stderr) process.stderr.write(`stderr: ${probe.stderr}\n`);
+    process.stderr.write(`Make sure the command is installed and available in your PATH, then rerun ${rerunCommand}.\n`);
+    return false;
+  }
+
+  saveLocalAgentConfig({ provider, command });
+  process.stdout.write(`Saved local-agent config (${provider}: ${command}).\n`);
+  return true;
+}
+
+async function promptInstallFallback(): Promise<{ scope: InstallScope; hook: InitHookMode; provider: LocalAgentProvider }> {
   const scope = await interactiveSelect<InstallScope>({
     title: "GitPreflight setup",
     prompt: "Choose scope:",
@@ -813,7 +867,9 @@ async function promptInstallFallback(): Promise<{ scope: InstallScope; hook: Ini
     defaultValue: "pre-commit"
   });
 
-  return { scope, hook };
+  const provider = await promptLocalAgentProvider("GitPreflight setup");
+
+  return { scope, hook, provider };
 }
 
 async function cmdSetupScope(argv: string[]) {
@@ -822,6 +878,7 @@ async function cmdSetupScope(argv: string[]) {
     options: {
       scope: { type: "string" },
       hook: { type: "string" },
+      agent: { type: "string" },
       yes: { type: "boolean" },
       help: { type: "boolean", short: "h" }
     },
@@ -829,12 +886,15 @@ async function cmdSetupScope(argv: string[]) {
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: gitpreflight setup [--scope global|local|repo] [--hook pre-commit|pre-push|both] [--yes]\n");
+    process.stdout.write(
+      "Usage: gitpreflight setup [--scope global|local|repo] [--hook pre-commit|pre-push|both] [--agent codex|claude|opencode] [--yes]\n"
+    );
     return 0;
   }
 
   const scopeFlag = parseScopeFlag(parsed.values.scope as string | undefined);
   const hookFlag = parseHookFlag(parsed.values.hook as string | undefined);
+  const providerFlag = parseLocalAgentProviderFlag(parsed.values.agent as string | undefined);
   const autoYes = Boolean(parsed.values.yes);
 
   if ((parsed.values.scope as string | undefined) && !scopeFlag) {
@@ -847,8 +907,14 @@ async function cmdSetupScope(argv: string[]) {
     return 2;
   }
 
+  if ((parsed.values.agent as string | undefined) && !providerFlag) {
+    process.stderr.write(`Invalid --agent value: ${parsed.values.agent}. Expected codex, claude, or opencode.\n`);
+    return 2;
+  }
+
   let scope = scopeFlag;
   let hook: InitHookMode = hookFlag ?? "pre-commit";
+  let provider = providerFlag;
 
   if (!scope) {
     if (autoYes) {
@@ -869,6 +935,7 @@ async function cmdSetupScope(argv: string[]) {
           const choice = await promptInstallFallback();
           scope = choice.scope;
           hook = choice.hook;
+          provider = choice.provider;
         } catch {
           process.stderr.write("Install canceled.\n");
           return 1;
@@ -878,6 +945,29 @@ async function cmdSetupScope(argv: string[]) {
       process.stderr.write("Non-interactive setup requires --scope (global|local|repo).\n");
       return 2;
     }
+  }
+
+  if (!provider) {
+    if (autoYes) {
+      process.stderr.write("Non-interactive setup requires --agent (codex|claude|opencode).\n");
+      return 2;
+    }
+
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+      try {
+        provider = await promptLocalAgentProvider("GitPreflight setup");
+      } catch {
+        process.stderr.write("Setup canceled.\n");
+        return 1;
+      }
+    } else {
+      process.stderr.write("Non-interactive setup requires --agent (codex|claude|opencode).\n");
+      return 2;
+    }
+  }
+
+  if (!probeAndSaveLocalAgent(provider, "`gitpreflight setup`")) {
+    return 1;
   }
 
   try {
@@ -899,6 +989,7 @@ async function cmdSetupScope(argv: string[]) {
     return 2;
   }
 
+  process.stdout.write("You can now run `gitpreflight review --staged`.\n");
   markOnboardingNoticeShown();
   return 0;
 }
@@ -1042,71 +1133,48 @@ async function cmdSetupLocalAgent(argv: string[]) {
   const parsed = parseArgs({
     args: argv,
     options: {
+      agent: { type: "string" },
       help: { type: "boolean", short: "h" }
     },
     allowPositionals: true
   });
 
   if (parsed.values.help) {
-    process.stdout.write("Usage: gitpreflight setup local-agent\n");
+    process.stdout.write("Usage: gitpreflight setup local-agent [--agent codex|claude|opencode]\n");
     return 0;
   }
 
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    process.stderr.write("`gitpreflight setup local-agent` is interactive and requires a TTY.\n");
+  const providerFlag = parseLocalAgentProviderFlag(parsed.values.agent as string | undefined);
+  if ((parsed.values.agent as string | undefined) && !providerFlag) {
+    process.stderr.write(`Invalid --agent value: ${parsed.values.agent}. Expected codex, claude, or opencode.\n`);
     return 2;
   }
 
-  let provider: LocalAgentProvider;
+  if (!providerFlag && (!process.stdin.isTTY || !process.stdout.isTTY)) {
+    process.stderr.write("`gitpreflight setup local-agent` requires a TTY or --agent.\n");
+    return 2;
+  }
+
+  let provider: LocalAgentProvider | null = providerFlag;
   try {
-    provider = await interactiveSelect<LocalAgentProvider>({
-      title: "GitPreflight local-agent setup",
-      prompt: "Which local agent are you using?",
-      options: [
-        {
-          value: "codex",
-          label: "Codex",
-          description: "Use the `codex` command."
-        },
-        {
-          value: "claude",
-          label: "Claude",
-          description: "Use the `claude` command."
-        },
-        {
-          value: "opencode",
-          label: "OpenCode",
-          description: "Use the `opencode run` command."
-        }
-      ],
-      defaultValue: "codex"
-    });
+    if (!provider) {
+      provider = await promptLocalAgentProvider("GitPreflight local-agent setup");
+    }
   } catch {
     process.stderr.write("Setup canceled.\n");
     return 1;
   }
 
-  const command = getDefaultLocalAgentCommand(provider);
-  process.stdout.write(`\nProbing local agent command: ${command}\n`);
-  const probe = probeLocalAgentCommand({
-    command,
-    cwd: process.cwd(),
-    timeoutMs: 20_000
-  });
+  if (!provider) {
+    process.stderr.write("Missing local agent provider.\n");
+    return 2;
+  }
 
-  if (!probe.ok) {
-    process.stderr.write("Local-agent probe failed. Configuration was not saved.\n");
-    process.stderr.write(`Command: ${command}\n`);
-    if (probe.exitCode !== null) process.stderr.write(`Exit code: ${probe.exitCode}\n`);
-    process.stderr.write(`Reason: ${probe.message}\n`);
-    if (probe.stderr) process.stderr.write(`stderr: ${probe.stderr}\n`);
-    process.stderr.write("Make sure the command is installed and available in your PATH, then rerun `gitpreflight setup local-agent`.\n");
+  if (!probeAndSaveLocalAgent(provider, "`gitpreflight setup local-agent`")) {
     return 1;
   }
 
-  saveLocalAgentConfig({ provider, command });
-  process.stdout.write(`Saved local-agent config (${provider}: ${command}).\n`);
-  process.stdout.write("You can now run `gitpreflight review --staged --local-agent`.\n");
+  process.stdout.write("You can now run `gitpreflight review --staged`.\n");
   return 0;
 }
 

@@ -43,6 +43,6 @@ export function onboardingNoticeText() {
   return [
     "GitPreflight is installed but not configured yet.",
     "Run `gitpreflight setup` to choose setup mode (global, local, or repo).",
-    "Tip: `gitpreflight setup --scope local --yes` for non-interactive setup."
+    "Tip: `gitpreflight setup --scope local --agent codex --yes` for non-interactive setup."
   ].join("\n");
 }

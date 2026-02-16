@@ -54,10 +54,9 @@ In a repo you want to protect:
 
 ```bash
 gitpreflight setup
-gitpreflight setup local-agent
 ```
 
-The local-agent setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
+The setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
 
 Check your installed version (and latest known release):
 
@@ -74,9 +73,9 @@ In a repo you want to protect:
 ```bash
 gitpreflight setup
 # or non-interactive:
-# gitpreflight setup --scope local --hook pre-commit --yes
-# gitpreflight setup --scope global --hook pre-commit --yes
-# gitpreflight setup --scope repo --hook pre-commit --yes
+# gitpreflight setup --scope local --hook pre-commit --agent codex --yes
+# gitpreflight setup --scope global --hook pre-commit --agent codex --yes
+# gitpreflight setup --scope repo --hook pre-commit --agent codex --yes
 ```
 
 `gitpreflight setup` is interactive in a TTY and explains scope options:
@@ -215,7 +214,7 @@ Local-agent mode shells out to a configured local agent command and expects GitP
 Configure it once:
 
 ```bash
-gitpreflight setup local-agent
+gitpreflight setup
 ```
 
 The setup flow lets you choose a provider (`Codex`, `Claude`, or `OpenCode`), probes the command with a live check, and saves config under `~/.config/gitpreflight/config.json`.
@@ -240,5 +239,5 @@ Config files written:
 Then run reviews with local-agent mode:
 
 ```bash
-gitpreflight review --staged --local-agent
+gitpreflight review --staged
 ```

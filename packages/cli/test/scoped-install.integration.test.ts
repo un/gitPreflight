@@ -36,7 +36,7 @@ function setupRepo(repoRoot: string) {
     "utf8"
   );
   git(repoRoot, ["add", "package.json"]);
-  git(repoRoot, ["commit", "-m", "init"]);
+  git(repoRoot, ["commit", "--no-verify", "-m", "init"]);
 }
 
 function makeFakeGitpreflightBin(baseDir: string): { binDir: string; logFile: string } {
