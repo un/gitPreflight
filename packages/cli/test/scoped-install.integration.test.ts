@@ -189,4 +189,27 @@ describe("scoped install integration", () => {
       expect(contents.includes("gitpreflight review --staged\n")).toBeFalse();
     });
   });
+
+  it("does not duplicate managed hook lines when setup runs repeatedly", () => {
+    withTempDir((dir) => {
+      const repoRoot = join(dir, "repo");
+      mkdirSync(repoRoot, { recursive: true });
+      setupRepo(repoRoot);
+
+      installLocalScope(repoRoot, { hook: "both" });
+      installLocalScope(repoRoot, { hook: "both" });
+
+      const preCommitPath = join(repoRoot, ".git", "gitpreflight", "hooks", "pre-commit");
+      const prePushPath = join(repoRoot, ".git", "gitpreflight", "hooks", "pre-push");
+      const postCommitPath = join(repoRoot, ".git", "gitpreflight", "hooks", "post-commit");
+
+      const preCommit = readFileSync(preCommitPath, "utf8");
+      const prePush = readFileSync(prePushPath, "utf8");
+      const postCommit = readFileSync(postCommitPath, "utf8");
+
+      expect((preCommit.match(/gitpreflight review --staged/g) ?? []).length).toBe(1);
+      expect((prePush.match(/gitpreflight review --push/g) ?? []).length).toBe(1);
+      expect((postCommit.match(/gitpreflight internal post-commit/g) ?? []).length).toBe(1);
+    });
+  });
 });

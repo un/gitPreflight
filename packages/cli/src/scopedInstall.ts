@@ -40,24 +40,21 @@ function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function removeLegacyHookLines(contents: string, hookName: string): string {
-  const legacyLines = (() => {
-    if (hookName === "pre-commit") {
-      return ["GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged"];
-    }
-    if (hookName === "pre-push") {
-      return ["GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --push \"$@\""];
-    }
-    return [];
-  })();
+function hookCommandFragment(hookName: string): string | null {
+  if (hookName === "pre-commit") return "gitpreflight review --staged";
+  if (hookName === "pre-push") return "gitpreflight review --push";
+  if (hookName === "post-commit") return "gitpreflight internal post-commit";
+  return null;
+}
 
+function removeManagedHookLines(contents: string, hookName: string): string {
+  const fragment = hookCommandFragment(hookName);
+  if (!fragment) return contents.replace(/\s*$/, "\n");
+
+  const escaped = escapeRegExp(fragment);
   let next = contents;
-  for (const legacyLine of legacyLines) {
-    const escaped = escapeRegExp(legacyLine);
-    next = next.replace(new RegExp(`(^|\\n)# gitpreflight\\n${escaped}\\n?`, "g"), "\n");
-    next = next.replace(new RegExp(`(^|\\n)${escaped}\\n?`, "g"), "\n");
-  }
-
+  next = next.replace(new RegExp(`(^|\\n)# gitpreflight\\n[^\\n]*${escaped}[^\\n]*\\n?`, "g"), "\n");
+  next = next.replace(new RegExp(`(^|\\n)[^\\n]*${escaped}[^\\n]*\\n?`, "g"), "\n");
   next = next.replace(/\n{3,}/g, "\n\n");
   return next.replace(/\s*$/, "\n");
 }
@@ -79,7 +76,7 @@ function ensureHookContains(hooksDir: string, hookName: string, hookLine: string
   }
 
   const before = normalizeNewline(readFileSync(hookPath, "utf8"));
-  const normalized = removeLegacyHookLines(before, hookName);
+  const normalized = removeManagedHookLines(before, hookName);
 
   if (normalized.includes(hookLine)) {
     if (normalized !== before) {
