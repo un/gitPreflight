@@ -1,5 +1,6 @@
 import type { InitHookMode } from "./init";
 import type { InstallScope } from "./scopedInstall";
+import type { LocalAgentProvider } from "./cliConfig";
 
 export type InstallWizardChoice = {
   scope: InstallScope;
@@ -186,4 +187,28 @@ export async function runInstallWizardTui(): Promise<InstallWizardChoice> {
   }
 
   return { scope, hook };
+}
+
+export async function runLocalAgentProviderTui(opts: { title: string }): Promise<LocalAgentProvider> {
+  const providerKey = await waitForChoice(opts.title, "Which local agent are you using?", [
+    {
+      key: "1",
+      label: "Codex",
+      description: "Use the `codex` command."
+    },
+    {
+      key: "2",
+      label: "Claude",
+      description: "Use the `claude` command."
+    },
+    {
+      key: "3",
+      label: "OpenCode",
+      description: "Use the `opencode run` command."
+    }
+  ]);
+
+  if (providerKey === "1") return "codex";
+  if (providerKey === "2") return "claude";
+  return "opencode";
 }

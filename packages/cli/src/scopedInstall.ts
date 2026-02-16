@@ -36,6 +36,32 @@ function normalizeNewline(s: string) {
   return s.replaceAll("\r\n", "\n");
 }
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function removeLegacyHookLines(contents: string, hookName: string): string {
+  const legacyLines = (() => {
+    if (hookName === "pre-commit") {
+      return ["GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged"];
+    }
+    if (hookName === "pre-push") {
+      return ["GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --push \"$@\""];
+    }
+    return [];
+  })();
+
+  let next = contents;
+  for (const legacyLine of legacyLines) {
+    const escaped = escapeRegExp(legacyLine);
+    next = next.replace(new RegExp(`(^|\\n)# gitpreflight\\n${escaped}\\n?`, "g"), "\n");
+    next = next.replace(new RegExp(`(^|\\n)${escaped}\\n?`, "g"), "\n");
+  }
+
+  next = next.replace(/\n{3,}/g, "\n\n");
+  return next.replace(/\s*$/, "\n");
+}
+
 function ensureHookContains(hooksDir: string, hookName: string, hookLine: string) {
   ensureDir(hooksDir);
   const hookPath = join(hooksDir, hookName);
@@ -53,8 +79,16 @@ function ensureHookContains(hooksDir: string, hookName: string, hookLine: string
   }
 
   const before = normalizeNewline(readFileSync(hookPath, "utf8"));
-  if (before.includes(hookLine)) return;
-  const next = before.replace(/\s*$/, "\n\n") + `${marker}\n${hookLine}\n`;
+  const normalized = removeLegacyHookLines(before, hookName);
+
+  if (normalized.includes(hookLine)) {
+    if (normalized !== before) {
+      writeFileSync(hookPath, normalized, "utf8");
+    }
+    return;
+  }
+
+  const next = normalized.replace(/\s*$/, "\n\n") + `${marker}\n${hookLine}\n`;
   writeFileSync(hookPath, next, "utf8");
   try {
     chmodSync(hookPath, 0o755);

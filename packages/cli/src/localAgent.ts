@@ -26,6 +26,19 @@ function looksLikeGitpreflightMarkdown(markdown: string): boolean {
   return hasHeader && hasCounts && hasFindingsHeader;
 }
 
+function shouldIsolateOpencodeEnv(command: string): boolean {
+  return /^opencode(?:\s|$)/.test(command.trim());
+}
+
+function spawnEnvForCommand(command: string): NodeJS.ProcessEnv {
+  if (!shouldIsolateOpencodeEnv(command)) return process.env;
+
+  const env = { ...process.env };
+  delete env.OPENCODE_SERVER_USERNAME;
+  delete env.OPENCODE_SERVER_PASSWORD;
+  return env;
+}
+
 export function runLocalAgentMarkdownReview(opts: {
   command: string;
   cwd: string;
@@ -35,6 +48,7 @@ export function runLocalAgentMarkdownReview(opts: {
   const res = spawnSync(opts.command, {
     cwd: opts.cwd,
     shell: true,
+    env: spawnEnvForCommand(opts.command),
     input: opts.prompt,
     encoding: "utf8",
     timeout: opts.timeoutMs,
@@ -73,6 +87,7 @@ export function probeLocalAgentCommand(opts: {
   const res = spawnSync(opts.command, {
     cwd: opts.cwd,
     shell: true,
+    env: spawnEnvForCommand(opts.command),
     input: "hi are you alive",
     encoding: "utf8",
     timeout: opts.timeoutMs,

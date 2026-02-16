@@ -158,4 +158,35 @@ describe("scoped install integration", () => {
       expect(status.effectiveScope).toBe("local");
     });
   });
+
+  it("removes legacy staged-review hook line when reinstalling", () => {
+    withTempDir((dir) => {
+      const repoRoot = join(dir, "repo");
+      mkdirSync(repoRoot, { recursive: true });
+      setupRepo(repoRoot);
+
+      installLocalScope(repoRoot, { hook: "pre-commit" });
+
+      const hookPath = join(repoRoot, ".git", "gitpreflight", "hooks", "pre-commit");
+      writeFileSync(
+        hookPath,
+        [
+          "#!/usr/bin/env sh",
+          "# gitpreflight",
+          "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged",
+          "",
+          "# gitpreflight",
+          "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged --local-agent",
+          ""
+        ].join("\n"),
+        "utf8"
+      );
+
+      installLocalScope(repoRoot, { hook: "pre-commit" });
+
+      const contents = readFileSync(hookPath, "utf8");
+      expect(contents.includes("gitpreflight review --staged --local-agent")).toBeTrue();
+      expect(contents.includes("gitpreflight review --staged\n")).toBeFalse();
+    });
+  });
 });

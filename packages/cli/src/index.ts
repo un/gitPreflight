@@ -48,7 +48,7 @@ import {
   uninstallLocalScope,
   type InstallScope
 } from "./scopedInstall";
-import { runInstallWizardTui } from "./installTui";
+import { runInstallWizardTui, runLocalAgentProviderTui } from "./installTui";
 import { markOnboardingNoticeShown, onboardingNoticeText, shouldShowOnboardingNotice } from "./onboarding";
 import { resolvePolicy } from "./policy";
 import { getDefaultLocalAgentCommand, getLocalAgentConfig, saveLocalAgentConfig, type LocalAgentProvider } from "./cliConfig";
@@ -772,28 +772,7 @@ function parseLocalAgentProviderFlag(providerFlag: string | undefined): LocalAge
 }
 
 async function promptLocalAgentProvider(title: string): Promise<LocalAgentProvider> {
-  return await interactiveSelect<LocalAgentProvider>({
-    title,
-    prompt: "Which local agent are you using?",
-    options: [
-      {
-        value: "codex",
-        label: "Codex",
-        description: "Use the `codex` command."
-      },
-      {
-        value: "claude",
-        label: "Claude",
-        description: "Use the `claude` command."
-      },
-      {
-        value: "opencode",
-        label: "OpenCode",
-        description: "Use the `opencode run` command."
-      }
-    ],
-    defaultValue: "codex"
-  });
+  return await runLocalAgentProviderTui({ title });
 }
 
 function probeAndSaveLocalAgent(provider: LocalAgentProvider, rerunCommand: string): boolean {
@@ -818,58 +797,6 @@ function probeAndSaveLocalAgent(provider: LocalAgentProvider, rerunCommand: stri
   saveLocalAgentConfig({ provider, command });
   process.stdout.write(`Saved local-agent config (${provider}: ${command}).\n`);
   return true;
-}
-
-async function promptInstallFallback(): Promise<{ scope: InstallScope; hook: InitHookMode; provider: LocalAgentProvider }> {
-  const scope = await interactiveSelect<InstallScope>({
-    title: "GitPreflight setup",
-    prompt: "Choose scope:",
-    options: [
-      {
-        value: "global",
-        label: "global",
-        description: "Enable GitPreflight for all repos on this machine."
-      },
-      {
-        value: "local",
-        label: "local",
-        description: "Enable only for this repo using local .git config."
-      },
-      {
-        value: "repo",
-        label: "repo",
-        description: "Commit Husky integration files for team setup."
-      }
-    ],
-    defaultValue: "local"
-  });
-
-  const hook = await interactiveSelect<InitHookMode>({
-    title: "GitPreflight setup",
-    prompt: "Choose hook mode:",
-    options: [
-      {
-        value: "pre-commit",
-        label: "pre-commit",
-        description: "Review staged changes at commit time."
-      },
-      {
-        value: "pre-push",
-        label: "pre-push",
-        description: "Review pushed commit range at push time."
-      },
-      {
-        value: "both",
-        label: "both",
-        description: "Install both pre-commit and pre-push checks."
-      }
-    ],
-    defaultValue: "pre-commit"
-  });
-
-  const provider = await promptLocalAgentProvider("GitPreflight setup");
-
-  return { scope, hook, provider };
 }
 
 async function cmdSetupScope(argv: string[]) {
@@ -920,26 +847,13 @@ async function cmdSetupScope(argv: string[]) {
     if (autoYes) {
       scope = "local";
     } else if (process.stdin.isTTY && process.stdout.isTTY) {
-      const isBunRuntime = typeof (globalThis as any).Bun !== "undefined";
-      if (isBunRuntime) {
-        try {
-          const choice = await runInstallWizardTui();
-          scope = choice.scope;
-          hook = choice.hook;
-        } catch {
-          process.stderr.write("Install canceled.\n");
-          return 1;
-        }
-      } else {
-        try {
-          const choice = await promptInstallFallback();
-          scope = choice.scope;
-          hook = choice.hook;
-          provider = choice.provider;
-        } catch {
-          process.stderr.write("Install canceled.\n");
-          return 1;
-        }
+      try {
+        const choice = await runInstallWizardTui();
+        scope = choice.scope;
+        hook = choice.hook;
+      } catch {
+        process.stderr.write("Install canceled.\n");
+        return 1;
       }
     } else {
       process.stderr.write("Non-interactive setup requires --scope (global|local|repo).\n");
