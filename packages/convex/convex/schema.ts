@@ -150,34 +150,5 @@ export default defineSchema({
     revokedAtMs: v.optional(v.number())
   })
     .index("by_userId", ["userId"])
-    .index("by_tokenHash", ["tokenHash"]),
-
-  anonymousInstalls: defineTable({
-    installId: v.string(),
-    channel: v.string(),
-    cliVersion: v.optional(v.string()),
-    platform: v.optional(v.string()),
-    arch: v.optional(v.string()),
-    createdAtMs: v.number(),
-    lastSeenAtMs: v.number(),
-    firstTriggerAtMs: v.optional(v.number()),
-    triggerCount: v.optional(v.number())
-  })
-    .index("by_installId", ["installId"])
-    .index("by_createdAtMs", ["createdAtMs"]),
-
-  anonymousTriggers: defineTable({
-    installId: v.string(),
-    mode: v.string(),
-    localAgent: v.boolean(),
-    status: v.optional(v.string()),
-    cliVersion: v.optional(v.string()),
-    platform: v.optional(v.string()),
-    arch: v.optional(v.string()),
-    createdAtMs: v.number(),
-    day: v.string()
-  })
-    .index("by_day", ["day"])
-    .index("by_createdAtMs", ["createdAtMs"])
-    .index("by_installId_day", ["installId", "day"])
+    .index("by_tokenHash", ["tokenHash"])
 });
