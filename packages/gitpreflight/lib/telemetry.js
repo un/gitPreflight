@@ -94,23 +94,17 @@ async function postJson(url, body, timeoutMs) {
   }
 }
 
-async function sendAnonymousInstallEvent(opts) {
+async function sendInstallUsageEvent() {
   const env = process.env;
   if (!telemetryEnabled(env)) return;
 
   try {
     const installId = await loadOrCreateInstallId();
-    const version = opts && typeof opts.version === "string" ? opts.version : undefined;
-    const channel = opts && typeof opts.channel === "string" ? opts.channel : "npm_postinstall";
     const baseUrl = telemetryBaseUrl(env);
     await postJson(
-      `${baseUrl}/api/v1/analytics/install`,
+      `${baseUrl}/api/v1/usage/install`,
       {
-        installId,
-        channel,
-        cliVersion: version,
-        platform: process.platform,
-        arch: process.arch
+        installId
       },
       1500
     );
@@ -120,5 +114,5 @@ async function sendAnonymousInstallEvent(opts) {
 }
 
 module.exports = {
-  sendAnonymousInstallEvent
+  sendInstallUsageEvent
 };

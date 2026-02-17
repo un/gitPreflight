@@ -164,15 +164,16 @@ gitpreflight review --staged --plain
 GITPREFLIGHT_UI=plain gitpreflight review --staged
 ```
 
-## Anonymous analytics (installs vs triggers)
+## Anonymous usage tracking
 
-GitPreflight collects minimal anonymous usage analytics to measure install/activation funnel quality.
+GitPreflight sends minimal anonymous usage events to help us understand install vs review usage.
 
-- Events:
-  - `install` (npm postinstall, curl installer, and CLI heartbeat upsert)
-  - `trigger` (each `gitpreflight review --staged|--push` invocation, including local-agent mode)
-- Stored fields: random `installId`, channel/mode, CLI version, platform, architecture, timestamp.
-- Not collected: user identity, email, auth token, repository URL, file contents, patch/diff content.
+- Endpoints:
+  - `POST /api/v1/usage/install`
+  - `POST /api/v1/usage/review`
+- Client payload: `{ "installId": "<random-id>" }`
+- Not collected in payload: user identity, email, auth token, repository URL, file contents, patch/diff content.
+- Server behavior: each endpoint forwards the event to PostHog.
 
 Opt out:
 
@@ -189,10 +190,12 @@ Override analytics endpoint (self-hosting/dev):
 export GITPREFLIGHT_TELEMETRY_BASE_URL="https://your-gitpreflight-host"
 ```
 
-Read aggregate funnel stats (for dashboards/landing pages):
+Web env required for forwarding events:
 
 ```bash
-curl -fsSL "https://gitpreflight.ai/api/v1/analytics/summary?days=30"
+POSTHOG_API_KEY=phc_...
+# optional override (default: https://us.i.posthog.com)
+POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 ## Unchecked policy (offline/timeout)
@@ -233,7 +236,7 @@ GitPreflight avoids storing customer repo source code at rest.
 - The server stores:
   - instruction file contents (by hash) when configured (e.g. `AGENTS.md`)
   - review outputs and aggregated usage/statistics
-  - anonymous install/trigger analytics (random install ID + runtime metadata only)
+  - anonymous usage events keyed by random install ID (forwarded to PostHog)
 - The server does not store arbitrary repo files.
 
 ## Source builds / local service

@@ -56,7 +56,7 @@ import { probeLocalAgentCommand } from "./localAgent";
 import { buildLocalAgentReviewPrompt } from "./localAgentPrompt";
 import { getOutdatedNoticeText, resolveCliUpdateStatus } from "./updateCheck";
 import { interactiveSelect } from "./interactiveSelect";
-import { sendAnonymousInstallEvent, sendAnonymousTriggerEvent } from "./analytics";
+import { sendUsageReviewEvent } from "./analytics";
 
 function printHelp() {
   process.stdout.write(
@@ -338,13 +338,7 @@ async function cmdReview(argv: string[]) {
     const repoEnv = loadRepoEnv(repoRoot);
     const mergedEnv = { ...process.env, ...repoEnv } as NodeJS.ProcessEnv;
 
-    void sendAnonymousInstallEvent({
-      channel: "cli_heartbeat",
-      env: mergedEnv
-    });
-    void sendAnonymousTriggerEvent({
-      mode,
-      localAgent: useLocalAgent,
+    void sendUsageReviewEvent({
       env: mergedEnv
     });
 

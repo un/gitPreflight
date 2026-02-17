@@ -26,24 +26,6 @@ const MARKDOWN_CONTRACT_EXCERPT = [
   "```",
 ].join("\n");
 
-/*
-type PublicFunnelSummary = {
-  installs: number;
-  activatedInstalls: number;
-  triggers: number;
-  conversionPercent: number;
-};
-
-async function getPublicFunnelSummary(days = 30): Promise<PublicFunnelSummary | null> {
-  const res = await fetch(`/api/v1/analytics/summary?days=${days}`, {
-    // Keep this cache window aligned with the API route.
-    next: { revalidate: 60 }
-  });
-  if (!res.ok) return null;
-  return (await res.json()) as PublicFunnelSummary;
-}
-*/
-
 export default function Home() {
 
   return (
@@ -80,17 +62,6 @@ export default function Home() {
             <code>{`npm i -g gitpreflight\ngitpreflight setup\ngitpreflight version\n\n# then work as usual\ngit add -A\ngit commit -m "feat: improve retry loop"`}</code>
           </pre>
         </div>
-
-        {/*
-        <div className="mt-4 rounded-lg border bg-card p-3 text-sm">
-          <div className="text-xs text-muted-foreground">Last 30 days</div>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <span>{summary.installs.toLocaleString()} installs</span>
-            <span>{summary.triggers.toLocaleString()} triggers</span>
-            <span>{summary.conversionPercent.toFixed(1)}% activated</span>
-          </div>
-        </div>
-        */}
       </section>
 
       <hr className="border-border" />

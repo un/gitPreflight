@@ -113,10 +113,10 @@ if [ "$TELEMETRY_DISABLE_FLAG" != "1" ] && [ "$TELEMETRY_DISABLE_FLAG" != "true"
     chmod 600 "$INSTALL_ID_FILE" 2>/dev/null || true
   fi
 
-  TELEMETRY_URL="$(printf '%s' "$TELEMETRY_BASE_URL" | sed 's:/*$::')/api/v1/analytics/install"
+  TELEMETRY_URL="$(printf '%s' "$TELEMETRY_BASE_URL" | sed 's:/*$::')/api/v1/usage/install"
   curl -fsSL -X POST "$TELEMETRY_URL" \
     -H 'content-type: application/json' \
-    --data "{\"installId\":\"$INSTALL_ID\",\"channel\":\"curl_install\",\"cliVersion\":\"$VERSION\",\"platform\":\"$PLATFORM\",\"arch\":\"$CPU\"}" \
+    --data "{\"installId\":\"$INSTALL_ID\"}" \
     >/dev/null 2>&1 || true
 fi
 

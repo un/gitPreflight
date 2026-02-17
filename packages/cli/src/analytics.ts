@@ -2,7 +2,6 @@ import { chmodSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
 import { ensureGitPreflightConfigDir, migrateLegacyMacConfigIfNeeded, getGitPreflightConfigDir } from "./configPaths";
-import { GITPREFLIGHT_CLI_VERSION } from "./version";
 
 const DEFAULT_TELEMETRY_BASE_URL = "https://gitpreflight.ai";
 const TELEMETRY_TIMEOUT_MS = 1_500;
@@ -92,50 +91,16 @@ async function postAnonymousEvent(path: string, body: unknown, env: NodeJS.Proce
   }
 }
 
-type TriggerMode = "staged" | "push";
-
-export async function sendAnonymousInstallEvent(opts: {
-  channel: string;
+export async function sendUsageReviewEvent(opts: {
   env?: NodeJS.ProcessEnv;
 }) {
   try {
     const env = opts.env ?? process.env;
     const installId = loadOrCreateInstallId();
     await postAnonymousEvent(
-      "/api/v1/analytics/install",
+      "/api/v1/usage/review",
       {
-        installId,
-        channel: opts.channel,
-        cliVersion: GITPREFLIGHT_CLI_VERSION,
-        platform: process.platform,
-        arch: process.arch
-      },
-      env
-    );
-  } catch {
-    // Best-effort telemetry only.
-  }
-}
-
-export async function sendAnonymousTriggerEvent(opts: {
-  mode: TriggerMode;
-  localAgent: boolean;
-  status?: "PASS" | "FAIL" | "UNCHECKED" | "UNKNOWN";
-  env?: NodeJS.ProcessEnv;
-}) {
-  try {
-    const env = opts.env ?? process.env;
-    const installId = loadOrCreateInstallId();
-    await postAnonymousEvent(
-      "/api/v1/analytics/trigger",
-      {
-        installId,
-        mode: opts.mode,
-        localAgent: opts.localAgent,
-        status: opts.status,
-        cliVersion: GITPREFLIGHT_CLI_VERSION,
-        platform: process.platform,
-        arch: process.arch
+        installId
       },
       env
     );
