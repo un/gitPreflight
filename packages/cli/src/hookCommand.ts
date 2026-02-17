@@ -6,22 +6,22 @@ function withHookUi(cmd: string): string {
 }
 
 export function makeGitPreflightReviewHookLine(pm: PackageManager): string {
-  if (pm === "pnpm") return withHookUi("pnpm exec gitpreflight review --staged");
-  if (pm === "npm") return withHookUi("npm exec -- gitpreflight review --staged");
-  if (pm === "yarn") return withHookUi("yarn -s gitpreflight review --staged");
-  if (pm === "bun") return withHookUi("bunx gitpreflight review --staged");
+  if (pm === "pnpm") return withHookUi("pnpm exec gitpreflight review --staged --local-agent");
+  if (pm === "npm") return withHookUi("npm exec -- gitpreflight review --staged --local-agent");
+  if (pm === "yarn") return withHookUi("yarn -s gitpreflight review --staged --local-agent");
+  if (pm === "bun") return withHookUi("bunx gitpreflight review --staged --local-agent");
 
-  return withHookUi("npx --no-install gitpreflight review --staged");
+  return withHookUi("npx --no-install gitpreflight review --staged --local-agent");
 }
 
 export function makeGitPreflightPushReviewHookLine(pm: PackageManager): string {
   // Pass through pre-push hook args (remote name + remote url).
-  if (pm === "pnpm") return withHookUi("pnpm exec gitpreflight review --push \"$@\"");
-  if (pm === "npm") return withHookUi("npm exec -- gitpreflight review --push \"$@\"");
-  if (pm === "yarn") return withHookUi("yarn -s gitpreflight review --push \"$@\"");
-  if (pm === "bun") return withHookUi("bunx gitpreflight review --push \"$@\"");
+  if (pm === "pnpm") return withHookUi("pnpm exec gitpreflight review --push --local-agent \"$@\"");
+  if (pm === "npm") return withHookUi("npm exec -- gitpreflight review --push --local-agent \"$@\"");
+  if (pm === "yarn") return withHookUi("yarn -s gitpreflight review --push --local-agent \"$@\"");
+  if (pm === "bun") return withHookUi("bunx gitpreflight review --push --local-agent \"$@\"");
 
-  return withHookUi("npx --no-install gitpreflight review --push \"$@\"");
+  return withHookUi("npx --no-install gitpreflight review --push --local-agent \"$@\"");
 }
 
 export function makeGitPreflightPostCommitHookLine(pm: PackageManager): string {

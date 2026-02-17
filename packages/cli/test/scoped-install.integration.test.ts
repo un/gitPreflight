@@ -36,7 +36,7 @@ function setupRepo(repoRoot: string) {
     "utf8"
   );
   git(repoRoot, ["add", "package.json"]);
-  git(repoRoot, ["commit", "-m", "init"]);
+  git(repoRoot, ["commit", "--no-verify", "-m", "init"]);
 }
 
 function makeFakeGitpreflightBin(baseDir: string): { binDir: string; logFile: string } {
@@ -156,6 +156,60 @@ describe("scoped install integration", () => {
       const status = getInstallStatus(repoRoot);
       expect(status.local.installed).toBeTrue();
       expect(status.effectiveScope).toBe("local");
+    });
+  });
+
+  it("removes legacy staged-review hook line when reinstalling", () => {
+    withTempDir((dir) => {
+      const repoRoot = join(dir, "repo");
+      mkdirSync(repoRoot, { recursive: true });
+      setupRepo(repoRoot);
+
+      installLocalScope(repoRoot, { hook: "pre-commit" });
+
+      const hookPath = join(repoRoot, ".git", "gitpreflight", "hooks", "pre-commit");
+      writeFileSync(
+        hookPath,
+        [
+          "#!/usr/bin/env sh",
+          "# gitpreflight",
+          "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged",
+          "",
+          "# gitpreflight",
+          "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged --local-agent",
+          ""
+        ].join("\n"),
+        "utf8"
+      );
+
+      installLocalScope(repoRoot, { hook: "pre-commit" });
+
+      const contents = readFileSync(hookPath, "utf8");
+      expect(contents.includes("gitpreflight review --staged --local-agent")).toBeTrue();
+      expect(contents.includes("gitpreflight review --staged\n")).toBeFalse();
+    });
+  });
+
+  it("does not duplicate managed hook lines when setup runs repeatedly", () => {
+    withTempDir((dir) => {
+      const repoRoot = join(dir, "repo");
+      mkdirSync(repoRoot, { recursive: true });
+      setupRepo(repoRoot);
+
+      installLocalScope(repoRoot, { hook: "both" });
+      installLocalScope(repoRoot, { hook: "both" });
+
+      const preCommitPath = join(repoRoot, ".git", "gitpreflight", "hooks", "pre-commit");
+      const prePushPath = join(repoRoot, ".git", "gitpreflight", "hooks", "pre-push");
+      const postCommitPath = join(repoRoot, ".git", "gitpreflight", "hooks", "post-commit");
+
+      const preCommit = readFileSync(preCommitPath, "utf8");
+      const prePush = readFileSync(prePushPath, "utf8");
+      const postCommit = readFileSync(postCommitPath, "utf8");
+
+      expect((preCommit.match(/gitpreflight review --staged/g) ?? []).length).toBe(1);
+      expect((prePush.match(/gitpreflight review --push/g) ?? []).length).toBe(1);
+      expect((postCommit.match(/gitpreflight internal post-commit/g) ?? []).length).toBe(1);
     });
   });
 });

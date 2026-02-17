@@ -11,7 +11,6 @@ Then run:
 ```bash
 gitpreflight --help
 gitpreflight setup
-gitpreflight setup local-agent
 gitpreflight version
 ```
 

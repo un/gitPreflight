@@ -36,6 +36,29 @@ function normalizeNewline(s: string) {
   return s.replaceAll("\r\n", "\n");
 }
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hookCommandFragment(hookName: string): string | null {
+  if (hookName === "pre-commit") return "gitpreflight review --staged";
+  if (hookName === "pre-push") return "gitpreflight review --push";
+  if (hookName === "post-commit") return "gitpreflight internal post-commit";
+  return null;
+}
+
+function removeManagedHookLines(contents: string, hookName: string): string {
+  const fragment = hookCommandFragment(hookName);
+  if (!fragment) return contents.replace(/\s*$/, "\n");
+
+  const escaped = escapeRegExp(fragment);
+  let next = contents;
+  next = next.replace(new RegExp(`(^|\\n)# gitpreflight\\n[^\\n]*${escaped}[^\\n]*\\n?`, "g"), "\n");
+  next = next.replace(new RegExp(`(^|\\n)[^\\n]*${escaped}[^\\n]*\\n?`, "g"), "\n");
+  next = next.replace(/\n{3,}/g, "\n\n");
+  return next.replace(/\s*$/, "\n");
+}
+
 function ensureHookContains(hooksDir: string, hookName: string, hookLine: string) {
   ensureDir(hooksDir);
   const hookPath = join(hooksDir, hookName);
@@ -53,8 +76,16 @@ function ensureHookContains(hooksDir: string, hookName: string, hookLine: string
   }
 
   const before = normalizeNewline(readFileSync(hookPath, "utf8"));
-  if (before.includes(hookLine)) return;
-  const next = before.replace(/\s*$/, "\n\n") + `${marker}\n${hookLine}\n`;
+  const normalized = removeManagedHookLines(before, hookName);
+
+  if (normalized.includes(hookLine)) {
+    if (normalized !== before) {
+      writeFileSync(hookPath, normalized, "utf8");
+    }
+    return;
+  }
+
+  const next = normalized.replace(/\s*$/, "\n\n") + `${marker}\n${hookLine}\n`;
   writeFileSync(hookPath, next, "utf8");
   try {
     chmodSync(hookPath, 0o755);
@@ -99,11 +130,11 @@ function toAbsoluteHooksPath(repoRoot: string, hooksPath: string): string {
 }
 
 function hookLinePreCommit(): string {
-  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged";
+  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged --local-agent";
 }
 
 function hookLinePrePush(): string {
-  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --push \"$@\"";
+  return "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --push --local-agent \"$@\"";
 }
 
 function hookLinePostCommit(): string {
