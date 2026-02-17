@@ -173,7 +173,7 @@ GitPreflight sends minimal anonymous usage events to help us understand install 
   - `POST /api/v1/usage/review`
 - Client payload: `{ "installId": "<random-id>" }`
 - Not collected in payload: user identity, email, auth token, repository URL, file contents, patch/diff content.
-- Server behavior: each endpoint forwards the event to PostHog.
+- Server behavior: Convex HTTP endpoints forward each event to PostHog.
 
 Opt out:
 
@@ -184,13 +184,13 @@ export GITPREFLIGHT_ANON_TELEMETRY=0
 export GITPREFLIGHT_DISABLE_ANON_TELEMETRY=1
 ```
 
-Override analytics endpoint (self-hosting/dev):
+Override usage endpoint host (CLI/installer):
 
 ```bash
 export GITPREFLIGHT_TELEMETRY_BASE_URL="https://your-gitpreflight-host"
 ```
 
-Web env required for forwarding events:
+Convex env required for forwarding events:
 
 ```bash
 POSTHOG_API_KEY=phc_...
