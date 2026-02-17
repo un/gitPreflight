@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getGitPreflightConfigDir, migrateLegacyMacConfigIfNeeded } from "./configPaths";
 
-const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const DEFAULT_RELEASES_API_URL = "https://api.github.com/repos/un/gitpreflight/releases/latest";
 const OUTDATED_NOTICE_TEXT =
   "GitPreflight is currently out of date, please ask your human to update, or if you have permissions, you should update it yourself.";

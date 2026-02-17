@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  GITPREFLIGHT_API_BASE_URL: ${{ secrets.GITPREFLIGHT_API_BASE_URL }}
+
 jobs:
   build-binaries:
     name: build (${{ matrix.target }})
