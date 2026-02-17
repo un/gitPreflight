@@ -15,12 +15,12 @@ GitPreflight tracks install and review usage with anonymous events only.
 - `POST /api/v1/usage/review`
   - Body: `{ installId }`
 
-Each endpoint forwards a server-side PostHog capture event:
+These are Convex HTTP endpoints. Each endpoint forwards a server-side PostHog capture event:
 
 - `usage/install`
 - `usage/review`
 
-## Web server configuration
+## Convex configuration
 
 - `POSTHOG_API_KEY=phc_...` (required)
 - `POSTHOG_HOST=https://us.i.posthog.com` (optional, default shown)
