@@ -3,6 +3,7 @@
 "use strict";
 
 const { ensureGitPreflightBinary } = require("../lib/installer");
+const { sendInstallUsageEvent } = require("../lib/telemetry");
 
 async function main() {
   const interactive = Boolean(process.stdout.isTTY) && Boolean(process.stderr.isTTY) && process.env.CI !== "1" && process.env.CI !== "true";
@@ -30,6 +31,7 @@ async function main() {
   }
 
   await ensureGitPreflightBinary({ reason: "postinstall" });
+  await sendInstallUsageEvent();
 
   if (interactive) {
     process.stderr.write("GitPreflight installed. Next: run `gitpreflight setup` to configure hooks.\n");

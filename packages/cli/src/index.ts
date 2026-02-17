@@ -56,6 +56,8 @@ import { getDefaultLocalAgentCommand, getLocalAgentConfig, saveLocalAgentConfig,
 import { probeLocalAgentCommand } from "./localAgent";
 import { buildLocalAgentReviewPrompt } from "./localAgentPrompt";
 import { getOutdatedNoticeText, resolveCliUpdateStatus } from "./updateCheck";
+import { interactiveSelect } from "./interactiveSelect";
+import { sendUsageReviewEvent } from "./analytics";
 
 function printHelp() {
   process.stdout.write(
@@ -337,6 +339,10 @@ async function cmdReview(argv: string[]) {
 
     const repoEnv = loadRepoEnv(repoRoot);
     const mergedEnv = { ...process.env, ...repoEnv } as NodeJS.ProcessEnv;
+
+    void sendUsageReviewEvent({
+      env: mergedEnv
+    });
 
     let apiBaseUrl: string | null = null;
     if (!useLocalAgent) {

@@ -4,6 +4,7 @@ set -eu
 
 REPO="${GITPREFLIGHT_GITHUB_REPO:-un/gitpreflight}"
 INSTALL_DIR="${GITPREFLIGHT_INSTALL_DIR:-${HOME}/.local/bin}"
+TELEMETRY_BASE_URL="${GITPREFLIGHT_TELEMETRY_BASE_URL:-${GITPREFLIGHT_API_BASE_URL:-https://gitpreflight.ai}}"
 
 say() { printf '%s\n' "$*"; }
 die() { printf '%s\n' "$*" >&2; exit 1; }
@@ -88,6 +89,37 @@ mv "$TMP_BIN" "$DEST"
 chmod 755 "$DEST"
 
 say "GitPreflight installed to: ${DEST}"
+
+TELEMETRY_FLAG="$(printf '%s' "${GITPREFLIGHT_ANON_TELEMETRY:-1}" | tr '[:upper:]' '[:lower:]')"
+TELEMETRY_DISABLE_FLAG="$(printf '%s' "${GITPREFLIGHT_DISABLE_ANON_TELEMETRY:-0}" | tr '[:upper:]' '[:lower:]')"
+if [ "$TELEMETRY_DISABLE_FLAG" != "1" ] && [ "$TELEMETRY_DISABLE_FLAG" != "true" ] && [ "$TELEMETRY_DISABLE_FLAG" != "yes" ] \
+  && [ "$TELEMETRY_FLAG" != "0" ] && [ "$TELEMETRY_FLAG" != "false" ] && [ "$TELEMETRY_FLAG" != "no" ]; then
+  CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/gitpreflight"
+  INSTALL_ID_FILE="${CONFIG_DIR}/install-id"
+  INSTALL_ID=""
+
+  if [ -f "$INSTALL_ID_FILE" ]; then
+    INSTALL_ID="$(tr -d '\r\n' < "$INSTALL_ID_FILE")"
+  fi
+
+  if [ ${#INSTALL_ID} -lt 16 ] || [ ${#INSTALL_ID} -gt 128 ]; then
+    if command -v uuidgen >/dev/null 2>&1; then
+      INSTALL_ID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+    else
+      INSTALL_ID="$(date +%s)-$$-$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
+    fi
+    mkdir -p "$CONFIG_DIR"
+    printf '%s\n' "$INSTALL_ID" > "$INSTALL_ID_FILE"
+    chmod 600 "$INSTALL_ID_FILE" 2>/dev/null || true
+  fi
+
+  TELEMETRY_URL="$(printf '%s' "$TELEMETRY_BASE_URL" | sed 's:/*$::')/api/v1/usage/install"
+  curl -fsSL -X POST "$TELEMETRY_URL" \
+    -H 'content-type: application/json' \
+    --data "{\"installId\":\"$INSTALL_ID\"}" \
+    >/dev/null 2>&1 || true
+fi
+
 say ""
 say "Next:"
 say "  gitpreflight --help"

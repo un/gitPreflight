@@ -152,6 +152,40 @@ gitpreflight review --staged --plain
 GITPREFLIGHT_UI=plain gitpreflight review --staged
 ```
 
+## Anonymous usage tracking
+
+GitPreflight sends minimal anonymous usage events to help us understand install vs review usage.
+
+- Endpoints:
+  - `POST /api/v1/usage/install`
+  - `POST /api/v1/usage/review`
+- Client payload: `{ "installId": "<random-id>" }`
+- Not collected in payload: user identity, email, auth token, repository URL, file contents, patch/diff content.
+- Server behavior: Convex HTTP endpoints forward each event to PostHog.
+
+Opt out:
+
+```bash
+# disable anonymous analytics
+export GITPREFLIGHT_ANON_TELEMETRY=0
+# or
+export GITPREFLIGHT_DISABLE_ANON_TELEMETRY=1
+```
+
+Override usage endpoint host (CLI/installer):
+
+```bash
+export GITPREFLIGHT_TELEMETRY_BASE_URL="https://your-gitpreflight-host"
+```
+
+Convex env required for forwarding events:
+
+```bash
+POSTHOG_API_KEY=phc_...
+# optional override (default: https://us.i.posthog.com)
+POSTHOG_HOST=https://us.i.posthog.com
+```
+
 ## Unchecked policy (offline/timeout)
 
 If GitPreflight cannot complete a review (network/timeout/server issues):
@@ -190,6 +224,7 @@ GitPreflight avoids storing customer repo source code at rest.
 - The server stores:
   - instruction file contents (by hash) when configured (e.g. `AGENTS.md`)
   - review outputs and aggregated usage/statistics
+  - anonymous usage events keyed by random install ID (forwarded to PostHog)
 - The server does not store arbitrary repo files.
 
 ## Source builds / local service
