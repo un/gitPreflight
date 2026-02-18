@@ -164,16 +164,25 @@ gitpreflight review --staged --plain
 GITPREFLIGHT_UI=plain gitpreflight review --staged
 ```
 
-## Anonymous usage tracking
+## Metrics and telemetry
 
-GitPreflight sends minimal anonymous usage events to help us understand install vs review usage.
+GitPreflight tracks two metric streams:
 
-- Endpoints:
-  - `POST /api/v1/usage/install`
-  - `POST /api/v1/usage/review`
-- Client payload: `{ "installId": "<random-id>" }`
-- Not collected in payload: user identity, email, auth token, repository URL, file contents, patch/diff content.
-- Server behavior: Convex HTTP endpoints forward each event to PostHog.
+- Anonymous product telemetry (CLI + installer):
+  - Endpoints:
+    - `POST /api/v1/usage/install`
+    - `POST /api/v1/usage/review`
+  - Client payload: `{ "installId": "<random-id>" }`
+  - Not collected in payload: user identity, email, auth token, repository URL, file contents, patch/diff content.
+  - Server behavior: Convex HTTP endpoints forward each event to PostHog.
+- Hosted review metrics (server-side):
+  - Daily usage quota counters are tracked per user and per org (`usageDaily`) when reviews run through the hosted `/api/v1/review` path.
+  - Per-model aggregates (`modelStats`) track runs, findings, and average latency for dashboard reporting.
+
+Local-agent mode note:
+
+- Local reviews do not hit hosted usage quota or model-stat tracking.
+- They still send the anonymous `usage/review` event (unless opted out below).
 
 Opt out:
 
