@@ -54,20 +54,10 @@ In a repo you want to protect:
 
 ```bash
 gitpreflight setup
-```
-
-The setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
-
-Interactive setup uses the OpenTUI flow (arrow keys + Enter) for both:
-
-- `gitpreflight setup` (scope + hook mode)
-- `gitpreflight setup local-agent` (provider only)
-
-To re-run just local-agent selection later:
-
-```bash
 gitpreflight setup local-agent
 ```
+
+The local-agent setup flow asks which local agent you use (`Codex`, `Claude`, or `OpenCode`), probes the command, then writes config to `~/.config/gitpreflight/config.json`.
 
 Check your installed version (and latest known release):
 
@@ -84,9 +74,9 @@ In a repo you want to protect:
 ```bash
 gitpreflight setup
 # or non-interactive:
-# gitpreflight setup --scope local --hook pre-commit --agent codex --yes
-# gitpreflight setup --scope global --hook pre-commit --agent codex --yes
-# gitpreflight setup --scope repo --hook pre-commit --agent codex --yes
+# gitpreflight setup --scope local --hook pre-commit --yes
+# gitpreflight setup --scope global --hook pre-commit --yes
+# gitpreflight setup --scope repo --hook pre-commit --yes
 ```
 
 `gitpreflight setup` is interactive in a TTY and explains scope options:
@@ -94,8 +84,6 @@ gitpreflight setup
 - `global`: enable across all repos on your machine
 - `local`: enable for this repo only, without committed integration files
 - `repo`: committed repo-owned setup for all contributors
-
-Re-running setup is safe: GitPreflight updates/dedupes managed hook lines instead of appending duplicates.
 
 Compatibility: `gitpreflight init` still works for repo-scoped Husky setup.
 
@@ -164,16 +152,25 @@ gitpreflight review --staged --plain
 GITPREFLIGHT_UI=plain gitpreflight review --staged
 ```
 
-## Anonymous usage tracking
+## Metrics and telemetry
 
-GitPreflight sends minimal anonymous usage events to help us understand install vs review usage.
+GitPreflight tracks two metric streams:
 
-- Endpoints:
-  - `POST /api/v1/usage/install`
-  - `POST /api/v1/usage/review`
-- Client payload: `{ "installId": "<random-id>" }`
-- Not collected in payload: user identity, email, auth token, repository URL, file contents, patch/diff content.
-- Server behavior: Convex HTTP endpoints forward each event to PostHog.
+- Anonymous product telemetry (CLI + installer):
+  - Endpoints:
+    - `POST /api/v1/usage/install`
+    - `POST /api/v1/usage/review`
+  - Client payload: `{ "installId": "<random-id>" }`
+  - Not collected in payload: user identity, email, auth token, repository URL, file contents, patch/diff content.
+  - Server behavior: Convex HTTP endpoints forward each event to PostHog.
+- Hosted review metrics (server-side):
+  - Daily usage quota counters are tracked per user and per org (`usageDaily`) when reviews run through the hosted `/api/v1/review` path.
+  - Per-model aggregates (`modelStats`) track runs, findings, and average latency for dashboard reporting.
+
+Local-agent mode note:
+
+- Local reviews do not hit hosted usage quota or model-stat tracking.
+- They still send the anonymous `usage/review` event (unless opted out below).
 
 Opt out:
 
@@ -262,7 +259,7 @@ Local-agent mode shells out to a configured local agent command and expects GitP
 Configure it once:
 
 ```bash
-gitpreflight setup
+gitpreflight setup local-agent
 ```
 
 The setup flow lets you choose a provider (`Codex`, `Claude`, or `OpenCode`), probes the command with a live check, and saves config under `~/.config/gitpreflight/config.json`.
@@ -272,8 +269,6 @@ Provider default commands:
 - `Codex` -> `codex`
 - `Claude` -> `claude`
 - `OpenCode` -> `opencode run`
-
-OpenCode compatibility: when the configured command starts with `opencode`, GitPreflight strips inherited `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD` before spawning the process to avoid host-session bleed into hook runs.
 
 Probe success criteria before saving config:
 
@@ -289,5 +284,5 @@ Config files written:
 Then run reviews with local-agent mode:
 
 ```bash
-gitpreflight review --staged
+gitpreflight review --staged --local-agent
 ```

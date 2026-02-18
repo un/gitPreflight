@@ -175,6 +175,15 @@ export default function Home() {
           </div>
 
           <div>
+            <h3 className="font-semibold">What metrics or telemetry do you collect?</h3>
+            <p className="mt-2 text-muted-foreground">
+              GitPreflight sends only anonymous install/review usage events keyed by a random local install ID. We do not include
+              repo URLs, diffs, file contents, emails, or auth tokens in that payload. Hosted mode also tracks daily usage/model
+              stats for your org dashboard; local-agent reviews do not use those hosted quota metrics.
+            </p>
+          </div>
+
+          <div>
             <h3 className="font-semibold">I use OpenCode. Is hook execution isolated from host sessions?</h3>
             <p className="mt-2 text-muted-foreground">
               Yes. GitPreflight sanitizes inherited OpenCode server session env vars before spawning <code>opencode</code> during hook

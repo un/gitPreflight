@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chmodSync, mkdirSync } from "node:fs";
@@ -210,6 +210,62 @@ describe("scoped install integration", () => {
       expect((preCommit.match(/gitpreflight review --staged/g) ?? []).length).toBe(1);
       expect((prePush.match(/gitpreflight review --push/g) ?? []).length).toBe(1);
       expect((postCommit.match(/gitpreflight internal post-commit/g) ?? []).length).toBe(1);
+    });
+  });
+  it("rewrites managed hook files from scratch on reinstall", () => {
+    withTempDir((dir) => {
+      const repoRoot = join(dir, "repo");
+      mkdirSync(repoRoot, { recursive: true });
+      setupRepo(repoRoot);
+
+      installLocalScope(repoRoot, { hook: "pre-commit" });
+
+      const hookPath = join(repoRoot, ".git", "gitpreflight", "hooks", "pre-commit");
+      writeFileSync(
+        hookPath,
+        [
+          "#!/usr/bin/env sh",
+          "repo_root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\"",
+          "local_repo=\"/tmp/example\"",
+          "",
+          "if [ \"$repo_root\" = \"$local_repo\" ]; then",
+          "  GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain node /tmp/local-cli review --staged --local-agent",
+          "else",
+          "  GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged --local-agent",
+          "fi",
+          ""
+        ].join("\n"),
+        "utf8"
+      );
+
+      installLocalScope(repoRoot, { hook: "pre-commit" });
+
+      const contents = readFileSync(hookPath, "utf8");
+      expect(contents).toBe(
+        [
+          "#!/usr/bin/env sh",
+          "",
+          "# gitpreflight",
+          "GITPREFLIGHT_HOOK=1 GITPREFLIGHT_UI=plain gitpreflight review --staged --local-agent",
+          ""
+        ].join("\n")
+      );
+    });
+  });
+
+  it("removes stale managed hooks when hook mode changes", () => {
+    withTempDir((dir) => {
+      const repoRoot = join(dir, "repo");
+      mkdirSync(repoRoot, { recursive: true });
+      setupRepo(repoRoot);
+
+      installLocalScope(repoRoot, { hook: "both" });
+      installLocalScope(repoRoot, { hook: "pre-commit" });
+
+      const hooksDir = join(repoRoot, ".git", "gitpreflight", "hooks");
+      expect(existsSync(join(hooksDir, "pre-commit"))).toBeTrue();
+      expect(existsSync(join(hooksDir, "post-commit"))).toBeTrue();
+      expect(existsSync(join(hooksDir, "pre-push"))).toBeFalse();
     });
   });
 });

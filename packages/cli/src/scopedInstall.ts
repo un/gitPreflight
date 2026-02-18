@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { getGitPreflightConfigDir, getLegacyMacConfigDir } from "./configPaths";
@@ -36,56 +36,19 @@ function normalizeNewline(s: string) {
   return s.replaceAll("\r\n", "\n");
 }
 
-function escapeRegExp(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function hookCommandFragment(hookName: string): string | null {
-  if (hookName === "pre-commit") return "gitpreflight review --staged";
-  if (hookName === "pre-push") return "gitpreflight review --push";
-  if (hookName === "post-commit") return "gitpreflight internal post-commit";
-  return null;
-}
-
-function removeManagedHookLines(contents: string, hookName: string): string {
-  const fragment = hookCommandFragment(hookName);
-  if (!fragment) return contents.replace(/\s*$/, "\n");
-
-  const escaped = escapeRegExp(fragment);
-  let next = contents;
-  next = next.replace(new RegExp(`(^|\\n)# gitpreflight\\n[^\\n]*${escaped}[^\\n]*\\n?`, "g"), "\n");
-  next = next.replace(new RegExp(`(^|\\n)[^\\n]*${escaped}[^\\n]*\\n?`, "g"), "\n");
-  next = next.replace(/\n{3,}/g, "\n\n");
-  return next.replace(/\s*$/, "\n");
+function buildManagedHookContents(hookLine: string): string {
+  return "#!/usr/bin/env sh\n\n# gitpreflight\n" + `${hookLine}\n`;
 }
 
 function ensureHookContains(hooksDir: string, hookName: string, hookLine: string) {
   ensureDir(hooksDir);
   const hookPath = join(hooksDir, hookName);
-  const marker = "# gitpreflight";
-
-  if (!existsSync(hookPath)) {
-    const contents = "#!/usr/bin/env sh\n" + `${marker}\n` + `${hookLine}\n`;
-    writeFileSync(hookPath, contents, "utf8");
-    try {
-      chmodSync(hookPath, 0o755);
-    } catch {
-      // best-effort
-    }
-    return;
+  const next = buildManagedHookContents(hookLine);
+  if (existsSync(hookPath)) {
+    const before = normalizeNewline(readFileSync(hookPath, "utf8"));
+    if (before === next) return;
   }
 
-  const before = normalizeNewline(readFileSync(hookPath, "utf8"));
-  const normalized = removeManagedHookLines(before, hookName);
-
-  if (normalized.includes(hookLine)) {
-    if (normalized !== before) {
-      writeFileSync(hookPath, normalized, "utf8");
-    }
-    return;
-  }
-
-  const next = normalized.replace(/\s*$/, "\n\n") + `${marker}\n${hookLine}\n`;
   writeFileSync(hookPath, next, "utf8");
   try {
     chmodSync(hookPath, 0o755);
@@ -142,6 +105,11 @@ function hookLinePostCommit(): string {
 }
 
 function installHooksInDir(hooksDir: string, hook: InitHookMode) {
+  ensureDir(hooksDir);
+  for (const hookName of ["pre-commit", "pre-push", "post-commit"] as const) {
+    rmSync(join(hooksDir, hookName), { force: true });
+  }
+
   if (hook === "pre-commit" || hook === "both") {
     ensureHookContains(hooksDir, "pre-commit", hookLinePreCommit());
     ensureHookContains(hooksDir, "post-commit", hookLinePostCommit());
