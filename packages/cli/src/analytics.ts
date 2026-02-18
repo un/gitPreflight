@@ -3,8 +3,13 @@ import { join } from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
 import { ensureGitPreflightConfigDir, migrateLegacyMacConfigIfNeeded, getGitPreflightConfigDir } from "./configPaths";
 
+declare const __GITPREFLIGHT_TELEMETRY_BASE_URL__: string | undefined;
+
 const DEFAULT_TELEMETRY_BASE_URL = "https://gitpreflight.ai";
 const TELEMETRY_TIMEOUT_MS = 1_500;
+
+const BUILTIN_TELEMETRY_BASE_URL =
+  typeof __GITPREFLIGHT_TELEMETRY_BASE_URL__ === "string" ? __GITPREFLIGHT_TELEMETRY_BASE_URL__.trim() : "";
 
 function isTruthy(value: string | undefined): boolean {
   if (!value) return false;
@@ -26,7 +31,10 @@ function telemetryEnabled(env: NodeJS.ProcessEnv): boolean {
 
 function telemetryBaseUrl(env: NodeJS.ProcessEnv): string {
   const raw =
-    env.GITPREFLIGHT_TELEMETRY_BASE_URL?.trim() || env.GITPREFLIGHT_API_BASE_URL?.trim() || DEFAULT_TELEMETRY_BASE_URL;
+    env.GITPREFLIGHT_TELEMETRY_BASE_URL?.trim() ||
+    env.GITPREFLIGHT_API_BASE_URL?.trim() ||
+    BUILTIN_TELEMETRY_BASE_URL ||
+    DEFAULT_TELEMETRY_BASE_URL;
   return raw.replace(/\/+$/, "");
 }
 

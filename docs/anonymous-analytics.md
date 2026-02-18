@@ -36,4 +36,5 @@ Set either environment variable:
 
 - `GITPREFLIGHT_TELEMETRY_BASE_URL=https://your-gitpreflight-host`
 - Falls back to `GITPREFLIGHT_API_BASE_URL` if set
+- Official release artifacts also include a baked default set during release CI from `GITPREFLIGHT_API_BASE_URL`
 - Default host: `https://gitpreflight.ai`

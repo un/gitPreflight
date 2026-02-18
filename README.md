@@ -187,6 +187,8 @@ Override usage endpoint host (CLI/installer):
 export GITPREFLIGHT_TELEMETRY_BASE_URL="https://your-gitpreflight-host"
 ```
 
+Official release builds bake a default usage host at build/publish time (from `GITPREFLIGHT_API_BASE_URL` in release CI). Runtime env vars still take precedence.
+
 Convex env required for forwarding events:
 
 ```bash

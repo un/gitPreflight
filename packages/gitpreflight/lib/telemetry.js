@@ -7,6 +7,18 @@ const crypto = require("node:crypto");
 
 const DEFAULT_TELEMETRY_BASE_URL = "https://gitpreflight.ai";
 
+function bakedTelemetryBaseUrl() {
+  try {
+    const pkg = require("../package.json");
+    const value = typeof pkg.gitpreflightTelemetryBaseUrl === "string" ? pkg.gitpreflightTelemetryBaseUrl.trim() : "";
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
+const BAKED_TELEMETRY_BASE_URL = bakedTelemetryBaseUrl();
+
 function isTruthy(v) {
   if (!v) return false;
   const t = String(v).trim().toLowerCase();
@@ -72,6 +84,7 @@ function telemetryBaseUrl(env) {
   const base =
     (env.GITPREFLIGHT_TELEMETRY_BASE_URL && env.GITPREFLIGHT_TELEMETRY_BASE_URL.trim()) ||
     (env.GITPREFLIGHT_API_BASE_URL && env.GITPREFLIGHT_API_BASE_URL.trim()) ||
+    BAKED_TELEMETRY_BASE_URL ||
     DEFAULT_TELEMETRY_BASE_URL;
   return base.replace(/\/+$/, "");
 }
