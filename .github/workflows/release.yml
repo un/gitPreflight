@@ -9,7 +9,8 @@ permissions:
   contents: write
 
 env:
-  GITPREFLIGHT_API_BASE_URL: ${{ secrets.GITPREFLIGHT_API_BASE_URL }}
+  GITPREFLIGHT_API_BASE_URL: ${{ secrets.GITPREFLIGHT_API_BASE_URL || vars.GITPREFLIGHT_API_BASE_URL }}
+  GITPREFLIGHT_TELEMETRY_BASE_URL: ${{ secrets.GITPREFLIGHT_TELEMETRY_BASE_URL || vars.GITPREFLIGHT_TELEMETRY_BASE_URL }}
 
 jobs:
   build-binaries:
@@ -37,6 +38,14 @@ jobs:
 
       - name: Install deps
         run: bun install --frozen-lockfile
+
+      - name: Verify baked telemetry base URL
+        run: |
+          BAKED="${GITPREFLIGHT_TELEMETRY_BASE_URL:-${GITPREFLIGHT_API_BASE_URL:-}}"
+          if [ -z "$BAKED" ]; then
+            echo "Missing telemetry base URL. Set GITPREFLIGHT_TELEMETRY_BASE_URL or GITPREFLIGHT_API_BASE_URL in repo/org secrets or variables." >&2
+            exit 1
+          fi
 
       - name: Install darwin-x64 OpenTUI runtime package
         if: matrix.target == 'darwin-x64'
@@ -101,6 +110,14 @@ jobs:
         run: |
           npm config delete //registry.npmjs.org/:_authToken || true
           if [ -n "${NPM_CONFIG_USERCONFIG:-}" ]; then rm -f "$NPM_CONFIG_USERCONFIG" || true; fi
+
+      - name: Verify baked telemetry base URL
+        run: |
+          BAKED="${GITPREFLIGHT_TELEMETRY_BASE_URL:-${GITPREFLIGHT_API_BASE_URL:-}}"
+          if [ -z "$BAKED" ]; then
+            echo "Missing telemetry base URL. Set GITPREFLIGHT_TELEMETRY_BASE_URL or GITPREFLIGHT_API_BASE_URL in repo/org secrets or variables." >&2
+            exit 1
+          fi
 
       - name: Set package version
         run: |
