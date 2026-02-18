@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 const GITHUB_REPO_URL = "https://github.com/un/gitpreflight";
-const SITE_URL = "https://gitpreflight.ai";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://gitpreflight.ai";
 const MARKETING_TITLE = "GitPreflight | Autonomous PR feedback for local CLI workflows";
 const MARKETING_DESCRIPTION =
   "Run PR-style reviews during git commit, route findings directly into your local coding agent, and open clean pull requests after autonomous fix loops pass.";
 const OG_IMAGE_ALT = "GitPreflight commit and push review loop preview image";
+const OG_IMAGE_URL = `${SITE_URL}/og.png`;
 const NOISE_DATA_URL =
   "data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20width%3D'128'%20height%3D'128'%3E%3Cfilter%20id%3D'n'%3E%3CfeTurbulence%20type%3D'fractalNoise'%20baseFrequency%3D'.8'%20numOctaves%3D'3'%20stitchTiles%3D'stitch'/%3E%3C/filter%3E%3Crect%20width%3D'128'%20height%3D'128'%20filter%3D'url(%23n)'%20opacity%3D'.4'/%3E%3C/svg%3E";
 
@@ -21,9 +22,9 @@ export const metadata: Metadata = {
     siteName: "GitPreflight",
     images: [
       {
-        url: `${SITE_URL}/opengraph-image`,
-        width: 1200,
-        height: 630,
+        url: OG_IMAGE_URL,
+        width: 1536,
+        height: 1024,
         alt: OG_IMAGE_ALT,
       },
     ],
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: MARKETING_TITLE,
     description: MARKETING_DESCRIPTION,
-    images: [`${SITE_URL}/opengraph-image`],
+    images: [OG_IMAGE_URL],
   },
 };
 
